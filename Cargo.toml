@@ -1,0 +1,15 @@
+[package]
+name = "kir"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+logos = "0.14.1"
+num = { version = "0.4.3", features = ["num-bigint"] }
+slotmap = "1.0.7"
+kir-macros = { path = "./kir-macros" }
+codespan-reporting = "0.11.1"
+
+[workspace]
+members = ["examples/*"]
