@@ -1,9 +1,8 @@
-use std::{collections::HashMap, fmt::Display, ops::Range};
+use std::{any::Any, collections::HashMap, ops::Range};
 
 use num::{BigInt, BigUint};
-use slotmap::SecondaryMap;
+use slotmap::{Key, SlotMap};
 
-use crate::ir::*;
 
 fn escape_str(s: &str) -> String {
     let mut res = String::new();
@@ -20,85 +19,27 @@ fn escape_str(s: &str) -> String {
     res
 }
 
-pub struct ValuePrinter<'r> {
-    pub values: &'r ValueMap,
-    pub used: HashMap<String, usize>,
-    pub resolved: SecondaryMap<ValueId, ValueName<'r>>,
-    pub next_value_id: usize,
+// similar to the Resolver trait, but for printing
+pub trait Dumper: Any {
+  fn name(&self) -> &'static str;
+  fn dump(&mut self, item: Box<dyn Any>) -> String;
 }
 
-#[derive(Clone, Copy)]
-pub enum ValueName<'r> {
-    Named(&'r str, usize),
-    Unnamed(usize),
-}
-impl Display for ValueName<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ValueName::Named(name, 0) => write!(f, "{}", name),
-            ValueName::Named(name, n) => write!(f, "{}_{}", name, n),
-            ValueName::Unnamed(n) => write!(f, "{}", n),
-        }
-    }
-}
-
-impl<'r> ValuePrinter<'r> {
-    pub fn new(values: &'r ValueMap) -> Self {
-        ValuePrinter {
-            values,
-            used: HashMap::new(),
-            resolved: SecondaryMap::new(),
-            next_value_id: 0,
-        }
-    }
-    pub fn find_next_name(&mut self, name: &str) -> usize {
-        if let Some(v) = self.used.get(name) {
-            let mut v = *v;
-            while self.used.contains_key(&format!("{}_{}", name, v)) {
-                v += 1;
-            }
-            *self.used.get_mut(name).unwrap() = v;
-            v
-        } else {
-            self.used.insert(name.to_string(), 1);
-            0
-        }
-    }
-    pub fn next_unnamed(&mut self) -> ValueName<'r> {
-        let id = self.next_value_id;
-        self.next_value_id += 1;
-        ValueName::Unnamed(id)
-    }
-    pub fn resolve_name(&mut self, vid: ValueId) -> ValueName<'r> {
-        if let Some(name) = self.resolved.get(vid) {
-            return *name;
-        }
-        let res = match self.values[vid].name {
-            Some(ref name) => {
-                let id = self.find_next_name(name);
-                ValueName::Named(name, id)
-            }
-            None => self.next_unnamed(),
-        };
-        self.resolved.insert(vid, res);
-        res
-    }
-}
-
-pub struct Printer<'v> {
+pub struct Printer {
     pub buf: String,
     pub ident: i32,
     pub space: bool,
-    pub vp: Option<ValuePrinter<'v>>,
+    // pub vp: Option<ValuePrinter<'v>>,
+    pub dumpers: HashMap<String, Box<dyn Any>>,
 }
 
-impl<'v> Printer<'v> {
+impl Printer {
     pub fn new() -> Self {
         Printer {
             buf: String::new(),
             ident: 0,
             space: false,
-            vp: None,
+            dumpers: HashMap::new(),
         }
     }
     pub fn write_fmt(&mut self, fmt: std::fmt::Arguments) {
@@ -121,18 +62,29 @@ impl<'v> Printer<'v> {
     pub fn print_unescaped_str(&mut self, s: &str) {
         self.write_fmt(format_args!("\"{}\"", escape_str(s)));
     }
-    pub fn print<T: Print>(&mut self, item: &'v T) { item.print(self); }
-    pub fn print_value(&mut self, vid: ValueId) {
-        let vp = self.vp.as_mut().unwrap();
-        let name = vp.resolve_name(vid);
-        let ty = vp.values[vid].ty.to_string();
-        match name {
-            ValueName::Named(name, 0) => self.write_fmt(format_args!("%{}:{}", name, ty)),
-            ValueName::Named(name, id) => self.write_fmt(format_args!("%{}_{}:{}", name, id, ty)),
-            ValueName::Unnamed(id) => self.write_fmt(format_args!("%{}:{}", id, ty)),
-        }
+    pub fn print<T: Print>(&mut self, item: &T) { item.print(self); }
+    pub fn print_by_dumper<T: 'static, D: Dumper>(&mut self, name: &str, item: T) -> Result<(), String> {
+      let dumper = self
+      .dumpers
+      .get_mut(name)
+      .ok_or_else(|| format!("No resolver for {}", name))?
+      .downcast_mut::<D>()
+      .ok_or_else(|| format!("Resolver type mismatch for {}", name))?;
+      let res = dumper.dump(Box::new(item));
+      self.write_fmt(format_args!("{}", res));
+      Ok(())
     }
-    pub fn print_list<'r: 'v, T: Print + 'r>(
+    // pub fn print_value(&mut self, vid: ValueId) {
+    //     let vp = self.vp.as_mut().unwrap();
+    //     let name = vp.resolve_name(vid);
+    //     let ty = vp.values[vid].ty.to_string();
+    //     match name {
+    //         ValueName::Named(name, 0) => self.write_fmt(format_args!("%{}:{}", name, ty)),
+    //         ValueName::Named(name, id) => self.write_fmt(format_args!("%{}_{}:{}", name, id, ty)),
+    //         ValueName::Unnamed(id) => self.write_fmt(format_args!("%{}:{}", id, ty)),
+    //     }
+    // }
+    pub fn print_list<'r, T: Print + 'r>(
         &mut self,
         left: &str,
         sep: &str,
@@ -173,8 +125,13 @@ impl<'v> Printer<'v> {
         self.space = false;
         self.write_fmt(format_args!("{}", right));
     }
-    pub fn set_printer(&mut self, printer: Option<ValuePrinter<'v>>) -> Option<ValuePrinter<'v>> {
-        std::mem::replace(&mut self.vp, printer)
+
+    // pub fn set_printer(&mut self, printer: Option<ValuePrinter<'v>>) -> Option<ValuePrinter<'v>> {
+    //     std::mem::replace(&mut self.vp, printer)
+    // }
+
+    pub fn add_dumper(&mut self, name: &str, dumper:  Box<dyn Any>) {
+        self.dumpers.insert(name.to_string(), dumper);
     }
 }
 
@@ -183,35 +140,35 @@ pub fn ir_dump(n: &impl Print) -> String {
     p.print(n);
     p.buf
 }
-pub fn ir_dump_with(values: &ValueMap, n: &impl Print) -> String {
-    let mut p = Printer::new();
-    p.vp = Some(ValuePrinter::new(values));
-    p.print(n);
-    p.buf
-}
+// pub fn ir_dump_with(values: &ValueMap, n: &impl Print) -> String {
+//     let mut p = Printer::new();
+//     p.vp = Some(ValuePrinter::new(values));
+//     p.print(n);
+//     p.buf
+// }
 
 pub trait Print {
-    fn print<'p>(&'p self, p: &mut Printer<'p>);
+    fn print(&self, p: &mut Printer);
 }
 
 pub trait IRDump: Sized {
     fn ir_dump(&self) -> String;
-    fn ir_dump_with(&self, values: &ValueMap) -> String;
+    // fn ir_dump_with(&self, values: &ValueMap) -> String;
 }
 impl<T: Print + Sized> IRDump for T {
     fn ir_dump(&self) -> String { ir_dump(self) }
-    fn ir_dump_with(&self, values: &ValueMap) -> String { ir_dump_with(values, self) }
+    // fn ir_dump_with(&self, values: &ValueMap) -> String { ir_dump_with(values, self) }
 }
 
 impl Print for String {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) { p.print_unescaped_str(self); }
+    fn print(&self, p: &mut Printer) { p.print_unescaped_str(self); }
 }
 
 macro_rules! impl_print_for_number {
     ($($ty:ty),*) => {
         $(
             impl Print for $ty {
-                fn print<'p>(&'p self, p: &mut Printer<'p>) {
+                fn print(&self, p: &mut Printer) {
                     write!(p, "{}", self);
                 }
             }
@@ -221,29 +178,32 @@ macro_rules! impl_print_for_number {
 impl_print_for_number!(bool, i8, i16, i32, i64, u8, u16, u32, u64, f32, f64, isize, usize);
 impl_print_for_number!(BigUint, BigInt);
 
-impl Print for ValueId {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) { p.print_value(*self); }
+impl<K: Key,T: Print> Print for SlotMap<K,T> {
+    fn print(&self, p: &mut Printer) {
+        p.print_list("(", "", ")", true, false, self.iter().map(|(_, v)| v));
+    }
 }
+
 impl<T: Print> Print for Vec<T> {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    fn print(&self, p: &mut Printer) {
         p.print_list("(", "", ")", false, false, self.iter());
     }
 }
 impl<T: Print, const N: usize> Print for [T; N] {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    fn print(&self, p: &mut Printer) {
         p.print_list("(", "", ")", true, false, self.iter());
     }
 }
 impl<T: Print> Print for Option<T> {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    fn print(&self, p: &mut Printer) {
         p.print_list("(", "", ")", true, false, self.iter())
     }
 }
 impl<T: Print> Print for Box<T> {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) { self.as_ref().print(p); }
+    fn print(&self, p: &mut Printer) { self.as_ref().print(p); }
 }
 impl<T: Print> Print for Range<T> {
-    fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    fn print(&self, p: &mut Printer) {
         self.start.print(p);
         write!(p, "..");
         self.end.print(p);

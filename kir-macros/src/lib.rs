@@ -490,15 +490,27 @@ pub fn derive_opio(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 //     }
 // }
 
-#[derive(Default)]
 struct ListArgs {
+  ty: Type,
   left: Option<Expr>,
   sep: Option<Expr>,
   right: Option<Expr>,
   newline: Option<Expr>,
   last: Option<Expr>,
 }
+
+
 impl ListArgs {
+  fn new(ty: Type) -> Self {
+    Self {
+      ty,
+      left: None,
+      sep: None,
+      right: None,
+      newline: None,
+      last: None,
+    }
+  }
   fn any(&self) -> bool {
     self.left.is_some()
       || self.sep.is_some()
@@ -516,6 +528,10 @@ impl ListArgs {
       .map_or(quote! {false}, |e| quote! {#e})
   }
   fn last(&self) -> TokenStream { self.last.as_ref().map_or(quote! {false}, |e| quote! {#e}) }
+
+  fn emit_ty(&self) -> TokenStream {
+    self.ty.clone().to_token_stream()
+  }
   fn emit_parse(&self) -> TokenStream {
     let sep = self.sep();
     if self.any() {
@@ -557,7 +573,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
     let mut print_before = vec![];
     let mut print_after = vec![];
     let fname = &info.name;
-    let mut list_arg = ListArgs::default();
+    let mut list_arg = ListArgs::new(info.field.ty.clone());
     let mut is_value_map = false;
     for (name, value) in &info.args {
       match &name[..] {
@@ -569,6 +585,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
         "value_map" => is_value_map = true,
         "semi_list" => {
           list_arg = ListArgs {
+            ty: info.field.ty.clone(),
             left: Some(syn::parse2(quote! {"{"}).unwrap()),
             sep: Some(syn::parse2(quote! {";"}).unwrap()),
             right: Some(syn::parse2(quote! {"}"}).unwrap()),
@@ -661,7 +678,7 @@ fn derive_parse_print_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
               }
           }
           impl kir::Print for #ident {
-              fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
+              fn print(& self, p: &mut kir::Printer) {
                   let Self #pat = self;
                   #print
               }
@@ -709,7 +726,7 @@ fn derive_parse_print_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
               }
           }
           impl kir::Print for #ident {
-              fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
+              fn print(& self, p: &mut kir::Printer) {
                   match self {
                       #(#print_matches),*
                   }
@@ -739,7 +756,10 @@ mod sexpr;
 #[proc_macro_derive(SExpr, attributes(pp))]
 pub fn derive_pp_sexpr(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
   match std::panic::catch_unwind(|| sexpr::derive_pp_sexpr_(tokens)) {
-    Ok(tokens) => tokens,
+    Ok(tokens) => {
+      // println!("tokens: {:?}", tokens);
+      tokens
+    },
     Err(_) => proc_macro::TokenStream::new(),
   }
 }

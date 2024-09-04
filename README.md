@@ -6,10 +6,10 @@
 
 - [x] Free-style parse-print (`#[derive(ParsePrint)]`)
 - [x] S-expression-style parse-print (`#[derive(SExpr)]`)
+- [x] Use `std::any::Any` to resolve and dump slotmaps.
 
 ## TODO
 
-- [ ] implement `ir::Type` and `ir::Value` as traits for more flexible usage.
 
 ## Examples
 
