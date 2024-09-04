@@ -8,26 +8,26 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
     vis,
     generics,
   } = syn::parse_macro_input!(tokens);
-  let token = quote! {::kir::Token};
+  let token = quote! {kir::Token};
   match data {
     Data::Struct(DataStruct { fields, .. }) => {
       let info = FieldsInfo::new(&fields, "pp");
       let pat = info.gen_inner_pat(None);
       let (parse, print) = impl_op_parse(&info);
       quote! {
-          impl ::kir::Parse for #ident {
-              fn parse(parser: &mut ::kir::Parser) -> Result<Self, String> {
+          impl kir::Parse for #ident {
+              fn parse(parser: &mut kir::Parser) -> Result<Self, String> {
                   #parse
                   Ok(Self #pat)
               }
           }
-          impl ::kir::Print for #ident {
-              fn print<'p>(&'p self, p: &mut ::kir::Printer<'p>) {
+          impl kir::Print for #ident {
+              fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
                   let Self #pat = self;
                   #print
               }
           }
-          impl ::kir::ParsePrint for #ident {}
+          impl kir::ParsePrint for #ident {}
       }
       .into()
     }
@@ -62,8 +62,8 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
         .collect::<Vec<_>>();
       let expect = expect.join(", ");
       quote! {
-          impl ::kir::Parse for #ident {
-              fn parse(parser: &mut ::kir::Parser) -> Result<Self, String> {
+          impl kir::Parse for #ident {
+              fn parse(parser: &mut kir::Parser) -> Result<Self, String> {
                   // parse sexpr: (variant args...)
                   let _ = parser.expect(#token::LParen)?;
                   let kw = parser.expect(#token::Keyword)?;
@@ -75,14 +75,14 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
                   res
               }
           }
-          impl ::kir::Print for #ident {
-              fn print<'p>(&'p self, p: &mut ::kir::Printer<'p>) {
+          impl kir::Print for #ident {
+              fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
                   match self {
                       #(#print_matches),*
                   }
               }
           }
-          impl ::kir::ParsePrint for #ident {}
+          impl kir::ParsePrint for #ident {}
       }
       .into()
     }
@@ -97,7 +97,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
   let mut parse = vec![];
   let mut print = vec![];
   let mut value_map = None;
-  let token = quote! {::kir::Token};
+  let token = quote! {kir::Token};
   for info in &info.infos {
     let mut parse_before = vec![];
     let mut parse_after = vec![];
@@ -210,7 +210,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
   };
   let print_expr = match value_map {
     Some(vmap) => quote! {
-        let __saved_printer = p.set_printer(Some(::kir::ValuePrinter::new(#vmap)));
+        let __saved_printer = p.set_printer(Some(kir::ValuePrinter::new(#vmap)));
         #(#print)*
         p.set_printer(__saved_printer);
     },

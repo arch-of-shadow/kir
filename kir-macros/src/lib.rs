@@ -269,10 +269,10 @@ impl<'r> VariantsInfo<'r> {
 //         }
 //         else if item.args_map.contains_key("wrap") {
 //             if gen_mut {
-//                 unpacks.push(quote!{let mut #ident = ::kir::#wrap_view(&mut self.#ident);});
+//                 unpacks.push(quote!{let mut #ident = kir::#wrap_view(&mut self.#ident);});
 //                 uses.push(quote!{&mut #ident});
 //             } else {
-//                 unpacks.push(quote!{let #ident = ::kir::#wrap_view(&self.#ident);});
+//                 unpacks.push(quote!{let #ident = kir::#wrap_view(&self.#ident);});
 //                 uses.push(quote!{&#ident});
 //             }
 //         }
@@ -288,7 +288,7 @@ fn derive_opio_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     vis,
     generics,
   } = syn::parse_macro_input!(tokens);
-  let value_id = quote! {::kir::ValueId};
+  let value_id = quote! {kir::ValueId};
   match data {
     Data::Struct(DataStruct { fields, .. }) => {
       let info = FieldsInfo::new(&fields, "opio");
@@ -350,36 +350,36 @@ fn derive_opio_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
       let attrs = find_ident("attr");
       let wraps = find_ident("wrap");
       quote! {
-          impl ::kir::OpIO for #ident {
+          impl kir::OpIO for #ident {
               fn num_inputs(&self) -> usize {
                   // #input_upk
-                  // ::kir::flat_combine_len!{<#value_id> #inputs}
-                  ::kir::flat_combine_len!{<#value_id> #inputs}
+                  // kir::flat_combine_len!{<#value_id> #inputs}
+                  kir::flat_combine_len!{<#value_id> #inputs}
               }
               fn input(&self, i: usize) -> #value_id {
                   // #input_upk
-                  // ::kir::flat_combine_deref!{<#value_id> i, #inputs}
-                  ::kir::flat_combine_deref!{<#value_id> i, #inputs}
+                  // kir::flat_combine_deref!{<#value_id> i, #inputs}
+                  kir::flat_combine_deref!{<#value_id> i, #inputs}
               }
               fn input_mut(&mut self, i: usize) -> &mut #value_id {
                   // #input_mut_upk
-                  // ::kir::flat_combine_mut!{<#value_id> i, #inputs_mut}
-                  ::kir::flat_combine_mut!{<#value_id> i, #inputs_mut}
+                  // kir::flat_combine_mut!{<#value_id> i, #inputs_mut}
+                  kir::flat_combine_mut!{<#value_id> i, #inputs_mut}
               }
               fn num_outputs(&self) -> usize {
                   // #output_upk
-                  // ::kir::flat_combine_len!{<#value_id> #outputs}
-                  ::kir::flat_combine_len!{<#value_id> #outputs}
+                  // kir::flat_combine_len!{<#value_id> #outputs}
+                  kir::flat_combine_len!{<#value_id> #outputs}
               }
               fn output(&self, i: usize) -> #value_id {
                   // #output_upk
-                  // ::kir::flat_combine_deref!{<#value_id> i, #outputs}
-                  ::kir::flat_combine_deref!{<#value_id> i, #outputs}
+                  // kir::flat_combine_deref!{<#value_id> i, #outputs}
+                  kir::flat_combine_deref!{<#value_id> i, #outputs}
               }
               fn output_mut(&mut self, i: usize) -> &mut #value_id {
                   // #output_mut_upk
-                  // ::kir::flat_combine_mut!{<#value_id> i, #outputs_mut}
-                  ::kir::flat_combine_mut!{<#value_id> i, #outputs_mut}
+                  // kir::flat_combine_mut!{<#value_id> i, #outputs_mut}
+                  kir::flat_combine_mut!{<#value_id> i, #outputs_mut}
               }
               fn attr_eq(&self, rhs: &Self) -> bool {
                   #(
@@ -434,7 +434,7 @@ fn derive_opio_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
       });
       let attr_hash = info.gen_match(|_| quote! {_0.attr_hash(state)});
       quote! {
-          impl ::kir::OpIO for #ident {
+          impl kir::OpIO for #ident {
               fn num_inputs(&self) -> usize {
                   #num_inputs
               }
@@ -550,7 +550,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
   let mut parse = vec![];
   let mut print = vec![];
   let mut value_map = None;
-  let token = quote! {::kir::Token};
+  let token = quote! {kir::Token};
   for info in &info.infos {
     let mut parse_before = vec![];
     let mut parse_after = vec![];
@@ -630,7 +630,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
   };
   let print_expr = match value_map {
     Some(vmap) => quote! {
-        let __saved_printer = p.set_printer(Some(::kir::ValuePrinter::new(#vmap)));
+        let __saved_printer = p.set_printer(Some(kir::ValuePrinter::new(#vmap)));
         #(#print)*
         p.set_printer(__saved_printer);
     },
@@ -647,26 +647,26 @@ fn derive_parse_print_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     vis,
     generics,
   } = syn::parse_macro_input!(tokens);
-  let token = quote! {::kir::Token};
+  let token = quote! {kir::Token};
   match data {
     Data::Struct(DataStruct { fields, .. }) => {
       let info = FieldsInfo::new(&fields, "pp");
       let pat = info.gen_inner_pat(None);
       let (parse, print) = impl_op_parse(&info);
       quote! {
-          impl ::kir::Parse for #ident {
-              fn parse(parser: &mut ::kir::Parser) -> Result<Self, String> {
+          impl kir::Parse for #ident {
+              fn parse(parser: &mut kir::Parser) -> Result<Self, String> {
                   #parse
                   Ok(Self #pat)
               }
           }
-          impl ::kir::Print for #ident {
-              fn print<'p>(&'p self, p: &mut ::kir::Printer<'p>) {
+          impl kir::Print for #ident {
+              fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
                   let Self #pat = self;
                   #print
               }
           }
-          impl ::kir::ParsePrint for #ident {}
+          impl kir::ParsePrint for #ident {}
       }
       .into()
     }
@@ -699,8 +699,8 @@ fn derive_parse_print_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         .collect::<Vec<_>>();
       let expect = expect.join(", ");
       quote! {
-          impl ::kir::Parse for #ident {
-              fn parse(parser: &mut ::kir::Parser) -> Result<Self, String> {
+          impl kir::Parse for #ident {
+              fn parse(parser: &mut kir::Parser) -> Result<Self, String> {
                   let kw = parser.expect(#token::Keyword)?;
                   match kw {
                       #(#parse_matches),*
@@ -708,14 +708,14 @@ fn derive_parse_print_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
                   }
               }
           }
-          impl ::kir::Print for #ident {
-              fn print<'p>(&'p self, p: &mut ::kir::Printer<'p>) {
+          impl kir::Print for #ident {
+              fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
                   match self {
                       #(#print_matches),*
                   }
               }
           }
-          impl ::kir::ParsePrint for #ident {}
+          impl kir::ParsePrint for #ident {}
       }
       .into()
     }

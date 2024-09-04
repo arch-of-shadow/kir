@@ -1,4 +1,5 @@
-use kir::*;
+use crate as kir;
+use crate::*;
 
 use std::ops::Range;
 

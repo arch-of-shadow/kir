@@ -1,5 +1,6 @@
 pub mod flatindex;
 
+mod examples;
 mod ir;
 mod parse;
 mod print;

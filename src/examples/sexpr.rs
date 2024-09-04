@@ -1,4 +1,5 @@
-use kir::*;
+use crate::*;
+use crate as kir;
 
 #[derive(Debug, Clone, SExpr, OpIO)]
 pub struct AddOp {
