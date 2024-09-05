@@ -1,6 +1,12 @@
+use std::collections::btree_map::Values;
+
+use syn::{Meta, MetaNameValue};
+
 use super::*;
 
-pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_pp_sexpr_(
+  tokens: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
   let DeriveInput {
     ident,
     data,
@@ -9,6 +15,29 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
     generics,
   } = syn::parse_macro_input!(tokens);
   let token = quote! {kir::Token};
+  let mut surrounded = false;
+  for Attribute {
+    pound_token,
+    style,
+    bracket_token,
+    meta,
+  } in &attrs
+  {
+    if let Meta::NameValue(MetaNameValue {
+      path,
+      eq_token,
+      value,
+      ..
+    }) = meta
+    {
+      if path.is_ident("surrounded") {
+        if let Ok(value) = syn::parse2::<syn::LitBool>(value.to_token_stream())
+        {
+          surrounded = value.value;
+        }
+      }
+    }
+  }
   match data {
     Data::Struct(DataStruct { fields, .. }) => {
       let info = FieldsInfo::new(&fields, "pp");
@@ -32,10 +61,24 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
       .into()
     }
     Data::Enum(DataEnum { variants, .. }) => {
+      
       let infos = VariantsInfo::new(&variants, "pp");
       let mut parse_matches = vec![];
       let mut print_matches = vec![];
       for info in &infos.infos {
+
+        for (name, value) in &info.args {
+          if name == "surrounded" {
+            if let Some(value) = value {
+              if let Ok(value) = syn::parse2::<syn::LitBool>(value.to_token_stream())
+              {
+                surrounded = value.value;
+              }
+            } else {
+              surrounded = true;
+            }
+          }
+        }
         let name = &info.name;
         let name_lower = info.name.to_string().to_lowercase();
         let (parse, print) = impl_op_parse(&info.fields);
@@ -48,10 +91,14 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
         });
         print_matches.push(quote! {
             Self::#name #pat => {
-                write!(p, "(");
+                if #surrounded {
+                  write!(p, "(");
+                }
                 write!(p, "{}", #name_lower);
                 #print
-                write!(p, ")");
+                if #surrounded {
+                  write!(p, ")");
+                }
             }
         });
       }
@@ -65,13 +112,17 @@ pub fn derive_pp_sexpr_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
           impl kir::Parse for #ident {
               fn parse(parser: &mut kir::Parser) -> Result<Self, String> {
                   // parse sexpr: (variant args...)
-                  let _ = parser.expect(#token::LParen)?;
+                  if #surrounded {
+                    let _ = parser.expect(#token::LParen)?;
+                  }
                   let kw = parser.expect(#token::Keyword)?;
                   let res = match kw {
                       #(#parse_matches),*
                       _ => Err(format!("Unknown keyword: {:?} expect {}", kw, #expect)),
                   };
-                  let _ = parser.expect(#token::RParen)?;
+                  if #surrounded {
+                    let _ = parser.expect(#token::RParen)?;
+                  }
                   res
               }
           }
@@ -113,7 +164,8 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
           parse_before.push(quote! {parser.expect(#token::LParen)?;});
           print_before.push(quote! {write!(p, "(");});
           if value.is_some() {
-            parse_before.push(quote! {parser.expect_str(#token::Keyword, #value)?;});
+            parse_before
+              .push(quote! {parser.expect_str(#token::Keyword, #value)?;});
             print_before.push(quote! {write!(p, "{}", #value);});
           }
 
@@ -135,7 +187,6 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
             print_after.push(quote! {p.newline();});
           }
           print_after.push(quote! {write!(p, ")");});
-
         }
         "list_ml" => {
           list_arg = ListArgs {
@@ -162,17 +213,21 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
         // "ident_" => print_after.push(quote! {p.ident(#value);}),
         name => {
           match name {
-            "kw" => parse_before.push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
-            "kw_" => parse_after.push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
-            // "punct" => parse_before.push(quote! {parser.expect_str(#token::Punct, #value)?;}),
-            // "punct_" => parse_after.push(quote! {parser.expect_str(#token::Punct, #value)?;}),
+            "kw" => parse_before
+              .push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
+            "kw_" => parse_after
+              .push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
+            "punct" => parse_before
+              .push(quote! {parser.expect_str(#token::Punct, #value)?;}),
+            "punct_" => parse_after
+              .push(quote! {parser.expect_str(#token::Punct, #value)?;}),
             _ => proc_panic!(value.span().unwrap(), "Unknown attribute"),
           }
           match name {
             "kw" => print_before.push(quote! {write!(p, "{}", #value);}),
             "kw_" => print_after.push(quote! {write!(p, "{}", #value);}),
-            // "punct" => print_before.push(quote! {write!(p, "{}", #value);}),
-            // "punct_" => print_after.push(quote! {write!(p, "{}", #value);}),
+            "punct" => print_before.push(quote! {write!(p, "{}", #value);}),
+            "punct_" => print_after.push(quote! {write!(p, "{}", #value);}),
             _ => proc_panic!(value.span().unwrap(), "Unknown attribute"),
           }
         }
@@ -182,7 +237,8 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
       value_map = Some(fname.clone());
       continue;
     }
-    let (parse_expr, print_expr) = (list_arg.emit_parse(), list_arg.emit_print(quote! {#fname}));
+    let (parse_expr, print_expr) =
+      (list_arg.emit_parse(), list_arg.emit_print(quote! {#fname}));
     parse.push(quote! {
         let #fname = {
             #(#parse_before)*
