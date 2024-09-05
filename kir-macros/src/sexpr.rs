@@ -4,6 +4,21 @@ use syn::{Meta, MetaNameValue};
 
 use super::*;
 
+fn lowercasize(s: String) -> String {
+  let mut res = String::new();
+  let mut is_first = true;
+  for c in s.chars() {
+    if c.is_uppercase() {
+      if !is_first {
+        res.push('_');
+      }
+      is_first = false;
+    }
+    res.push(c.to_ascii_lowercase());
+  }
+  res
+}
+
 pub fn derive_pp_sexpr_(
   tokens: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
@@ -80,7 +95,7 @@ pub fn derive_pp_sexpr_(
           }
         }
         let name = &info.name;
-        let name_lower = info.name.to_string().to_lowercase();
+        let name_lower = lowercasize(info.name.to_string());
         let (parse, print) = impl_op_parse(&info.fields);
         let pat = info.fields.gen_inner_pat(None);
         parse_matches.push(quote! {
@@ -105,7 +120,7 @@ pub fn derive_pp_sexpr_(
       let expect = infos
         .variants
         .iter()
-        .map(|v| v.ident.to_string().to_lowercase())
+        .map(|v| lowercasize(v.ident.to_string()))
         .collect::<Vec<_>>();
       let expect = expect.join(", ");
       quote! {
