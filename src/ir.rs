@@ -1,5 +1,8 @@
 use std::{
-  fmt::Debug, hash::Hash, ops::{Deref, DerefMut}, str::FromStr
+  fmt::Debug,
+  hash::Hash,
+  ops::{Deref, DerefMut},
+  str::FromStr,
 };
 
 use crate::{new_key_type, IdFor};
@@ -160,8 +163,10 @@ pub trait OpIO {
     self.map_inputs(&mut f);
     self.map_outputs(&mut f);
   }
-  fn attr_eq(&self, rhs: &Self) -> bool;
-  fn attr_hash<H: std::hash::Hasher>(&self, state: &mut H);
+  fn attr_eq(&self, _rhs: &Self) -> bool {
+    true
+  }
+  fn attr_hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
 }
 
 impl OpIO for ValueId {
@@ -271,9 +276,47 @@ impl<T: OpIO> OpIO for Vec<T> {
     self.iter().zip(rhs.iter()).all(|(a, b)| a.attr_eq(b))
   }
   fn attr_hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    for t in self { 
+    for t in self {
       t.attr_hash(state);
     }
+  }
+}
+
+impl<T: OpIO> OpIO for Option<T> {
+  fn num_inputs(&self) -> usize {
+    self.as_ref().map(|t| t.num_inputs()).unwrap_or(0)
+  }
+
+  fn input(&self, i: usize) -> ValueId {
+    self.as_ref().unwrap().input(i)
+  }
+
+  fn input_mut(&mut self, i: usize) -> &mut ValueId {
+    self.as_mut().unwrap().input_mut(i)
+  }
+
+  fn num_outputs(&self) -> usize {
+    self.as_ref().map(|t| t.num_outputs()).unwrap_or(0)
+  }
+
+  fn output(&self, i: usize) -> ValueId {
+    self.as_ref().unwrap().output(i)
+  }
+
+  fn output_mut(&mut self, i: usize) -> &mut ValueId {
+    self.as_mut().unwrap().output_mut(i)
+  }
+
+  fn attr_eq(&self, rhs: &Self) -> bool {
+    match (self, rhs) {
+      (None, None) => true,
+      (Some(a), Some(b)) => a.attr_eq(b),
+      _ => false,
+    }
+  }
+
+  fn attr_hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.as_ref().map(|t| t.attr_hash(state));
   }
 }
 

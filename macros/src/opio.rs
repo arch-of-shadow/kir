@@ -19,11 +19,13 @@ pub(crate) fn derive_opio_(
         let traits = item.args_map.contains_key("input") as u8
           + item.args_map.contains_key("output") as u8
           + item.args_map.contains_key("attr") as u8
-          + item.args_map.contains_key("wrap") as u8;
+          + item.args_map.contains_key("wrap") as u8
+          + item.args_map.contains_key("wrap_input") as u8
+          + item.args_map.contains_key("wrap_output") as u8;
         if traits > 1 {
           proc_panic!(
             item.field.span().unwrap(),
-            "Only one of input, output, attr and wrap is allowed"
+            "Only one of input, output, attr, wrap, wrap_input and wrap_output is allowed"
           );
         }
       }
@@ -40,7 +42,10 @@ pub(crate) fn derive_opio_(
               } else {
                 res.push(quote! { &self.#iname });
               }
-            } else if info.args_map.contains_key("wrap") {
+            } else if info.args_map.contains_key("wrap")
+              || (info.args_map.contains_key("wrap_input") && name == "input")
+              || (info.args_map.contains_key("wrap_output") && name == "output")
+            {
               if use_mut {
                 res.push(quote! { <&mut self.#iname, #wrap_len, #wrap_get>})
               } else {
