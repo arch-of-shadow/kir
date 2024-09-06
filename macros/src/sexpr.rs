@@ -1,6 +1,9 @@
 use std::collections::btree_map::Values;
 
-use syn::{Meta, MetaNameValue};
+use syn::{
+  AngleBracketedGenericArguments, GenericArgument, GenericParam, Meta,
+  MetaNameValue, Path, PathArguments, TypeParam, TypePath,
+};
 
 use super::*;
 
@@ -55,9 +58,9 @@ pub fn derive_pp_sexpr_(
   }
   match data {
     Data::Struct(DataStruct { fields, .. }) => {
-      let info = FieldsInfo::new(&fields, "pp");
+      let info = FieldsInfo::new(Some(ident.clone()), &fields, "pp");
       let pat = info.gen_inner_pat(None);
-      let (parse, print) = impl_op_parse(&info);
+      let (parse, print, ctx_impl) = impl_op_parse(&info);
       quote! {
           impl kir::Parse for #ident {
               fn parse(parser: &mut kir::Parser) -> Result<Self, String> {
@@ -72,20 +75,20 @@ pub fn derive_pp_sexpr_(
               }
           }
           impl kir::ParsePrint for #ident {}
+          #ctx_impl
       }
       .into()
     }
     Data::Enum(DataEnum { variants, .. }) => {
-      
       let infos = VariantsInfo::new(&variants, "pp");
       let mut parse_matches = vec![];
       let mut print_matches = vec![];
       for info in &infos.infos {
-
         for (name, value) in &info.args {
           if name == "surrounded" {
             if let Some(value) = value {
-              if let Ok(value) = syn::parse2::<syn::LitBool>(value.to_token_stream())
+              if let Ok(value) =
+                syn::parse2::<syn::LitBool>(value.to_token_stream())
               {
                 surrounded = value.value;
               }
@@ -96,7 +99,13 @@ pub fn derive_pp_sexpr_(
         }
         let name = &info.name;
         let name_lower = lowercasize(info.name.to_string());
-        let (parse, print) = impl_op_parse(&info.fields);
+        let (parse, print, ctx_impl) = impl_op_parse(&info.fields);
+        if !ctx_impl.is_empty() {
+          proc_panic!(
+            name.span().unwrap(),
+            "ctx_impl for maps is not supported for enum"
+          );
+        }
         let pat = info.fields.gen_inner_pat(None);
         parse_matches.push(quote! {
             #name_lower => {
@@ -159,10 +168,92 @@ pub fn derive_pp_sexpr_(
   }
 }
 
-fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
+#[derive(Debug, Clone)]
+struct MapInfo {
+  field_name: Ident,
+  key_type: Type,
+  value_type: Type,
+}
+
+impl MapInfo {
+  pub fn new(info: &FieldInfo) -> Self {
+    let field_name = info.name.clone();
+    let ty = info.field.ty.clone();
+    let (key_type, value_type) = if let Type::Path(TypePath {
+      path: Path { segments, .. },
+      ..
+    }) = &ty
+    {
+      if let Some(segment) = segments.first() {
+        if segment.ident == "SlotMap" {
+          let args = if let PathArguments::AngleBracketed(
+            AngleBracketedGenericArguments { args, .. },
+          ) = &segment.arguments
+          {
+            args
+              .iter()
+              .filter_map(|arg| {
+                if let GenericArgument::Type(ty) = arg {
+                  Some(ty.clone())
+                } else {
+                  None
+                }
+              })
+              .collect::<Vec<_>>()
+          } else {
+            vec![]
+          };
+
+          if args.len() != 2 {
+            proc_panic!(
+              ty.span().unwrap(),
+              &format!(
+                "only support SlotMap<K,V> here, but the provided ty is {}",
+                ty.to_token_stream().to_string()
+              )
+            );
+          } else {
+            (args[0].clone(), args[1].clone())
+          }
+        } else {
+          proc_panic!(
+            ty.span().unwrap(),
+            &format!(
+              "only support SlotMap<K,V> here, but the provided ty is {}",
+              ty.to_token_stream().to_string()
+            )
+          );
+        }
+      } else {
+        proc_panic!(
+          ty.span().unwrap(),
+          &format!(
+            "no segment in type path: {}",
+            ty.to_token_stream().to_string()
+          )
+        );
+      }
+    } else {
+      proc_panic!(
+        ty.span().unwrap(),
+        &format!(
+          "only support SlotMap<K,V> here, but the provided ty is {}",
+          ty.to_token_stream().to_string()
+        )
+      );
+    };
+    Self {
+      field_name,
+      key_type,
+      value_type,
+    }
+  }
+}
+
+fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
   let mut parse = vec![];
   let mut print = vec![];
-  let mut value_map = None;
+  let mut map = None;
   let token = quote! {kir::Token};
   for info in &info.infos {
     let mut parse_before = vec![];
@@ -171,10 +262,12 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
     let mut print_after = vec![];
     let fname = &info.name;
     let mut list_arg = ListArgs::default();
-    let mut is_value_map = false;
+    let mut is_map = false;
     for (name, value) in &info.args {
       match &name[..] {
-        "value_map" => is_value_map = true,
+        "map" => {
+          is_map = true;
+        }
         "surrounded" => {
           parse_before.push(quote! {parser.expect(#token::LParen)?;});
           print_before.push(quote! {write!(p, "(");});
@@ -248,8 +341,8 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
         }
       }
     }
-    if is_value_map {
-      value_map = Some(fname.clone());
+    if is_map {
+      map = Some(MapInfo::new(info));
       continue;
     }
     let (parse_expr, print_expr) =
@@ -271,21 +364,84 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
     });
   }
   let builder = info.gen_inner_pat(None);
-  let parse_expr = match &value_map {
-    Some(vmap) => quote! {
+  let ctx_impl = if let Some(MapInfo {
+    field_name,
+    key_type,
+    value_type,
+  }) = map.clone()
+  {
+    if let Some(struct_ident) = info.struct_ident.clone() {
+      impl_ctx_map(struct_ident, field_name, key_type, value_type)
+    } else {
+      TokenStream::new()
+    }
+  } else {
+    TokenStream::new()
+  };
+  let parse_expr = match &map {
+    Some(MapInfo { field_name, .. }) => quote! {
         let __saved_resolver = parser.set_resolver(Some(Default::default()));
         #(#parse)*
-        let #vmap = parser.set_resolver(__saved_resolver).unwrap().values;
+        let #field_name = parser.set_resolver(__saved_resolver).unwrap().values;
     },
     None => quote! {#(#parse)*},
   };
-  let print_expr = match value_map {
-    Some(vmap) => quote! {
-        let __saved_printer = p.set_printer(Some(kir::ValuePrinter::new(#vmap)));
+  let print_expr = match map {
+    Some(MapInfo { field_name, .. }) => quote! {
+        let __saved_printer = p.set_printer(Some(kir::ValuePrinter::new(#field_name)));
         #(#print)*
         p.set_printer(__saved_printer);
     },
     None => quote! {#(#print)*},
   };
-  (parse_expr, print_expr)
+  (parse_expr, print_expr, ctx_impl)
+}
+
+fn impl_ctx_map(
+  struct_ident: Ident,
+  field_name: Ident,
+  key_type: Type,
+  value_type: Type,
+) -> TokenStream {
+  quote! {
+    impl kir::Ctx<#value_type, #key_type> for #struct_ident {
+      fn insert(&mut self, value: #value_type) -> #key_type {
+        kir::Ctx::insert(&mut self.#field_name, value)
+      }
+
+      fn insert_with_key(&mut self, f: impl FnOnce(#key_type) -> #value_type) -> #key_type {
+        kir::Ctx::insert_with_key(&mut self.#field_name, f)
+      }
+
+      fn get(&self, idx: #key_type) -> Option<&#value_type> {
+        kir::Ctx::get(&self.#field_name, idx)
+      }
+
+      fn get_mut(&mut self, idx: #key_type) -> Option<&mut #value_type> {
+        kir::Ctx::get_mut(&mut self.#field_name, idx)
+      }
+
+      fn remove(&mut self, idx: #key_type) -> Option<#value_type> {
+        kir::Ctx::remove(&mut self.#field_name, idx)
+      }
+
+      fn exists(&self, idx: #key_type) -> bool {
+        kir::Ctx::exists(&self.#field_name, idx)
+      }
+    }
+
+    impl std::ops::Index<#key_type> for #struct_ident {
+      type Output = #value_type;
+
+      fn index(&self, idx: #key_type) -> &Self::Output {
+        self.get(idx).expect("Index not found")
+      }
+    }
+
+    impl std::ops::IndexMut<#key_type> for #struct_ident {
+      fn index_mut(&mut self, idx: #key_type) -> &mut Self::Output {
+        self.get_mut(idx).expect("Index not found")
+      }
+    }
+  }
 }

@@ -21,8 +21,8 @@ pub struct Module {
   #[pp(open=1)]
   #[pp(kw = "module")]
   pub name: String,
-  #[pp(value_map)]
-  pub values: ValueMap,
+  #[pp(map)]
+  pub values: SlotMap<ValueId, Value>,
   #[pp(open=1)]
   #[pp(surrounded = "inputs")]
   pub inputs: Vec<ValueId>,
@@ -63,6 +63,8 @@ mod tests {
       ty: Type::Int(4),
       name: Some("c".to_string()),
     });
+
+    assert_eq!(module[a].ty, Type::Int(4));
 
     module.inputs.push(a);
     module.inputs.push(b);

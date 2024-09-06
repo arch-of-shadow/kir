@@ -2,11 +2,11 @@ use std::{
   fmt::Debug, hash::Hash, ops::{Deref, DerefMut}, str::FromStr
 };
 
-use crate::new_key_type;
+use crate::{new_key_type, IdFor};
 use slotmap::SlotMap;
 
 new_key_type! {
-    pub struct ValueId;
+    pub struct ValueId; => Value
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -168,10 +168,10 @@ impl OpIO for ValueId {
   fn num_inputs(&self) -> usize {
     0
   }
-  fn input(&self, i: usize) -> ValueId {
+  fn input(&self, _i: usize) -> ValueId {
     panic!("ValueId has no inputs");
   }
-  fn input_mut(&mut self, i: usize) -> &mut ValueId {
+  fn input_mut(&mut self, _i: usize) -> &mut ValueId {
     panic!("ValueId has no inputs");
   }
   fn num_outputs(&self) -> usize {

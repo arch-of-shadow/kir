@@ -8,5 +8,5 @@ edition = "2021"
 logos = "0.14.1"
 num = { version = "0.4.3", features = ["num-bigint"] }
 slotmap = "1.0.7"
-kir-macros = { path = "./kir-macros" }
+kir-macros = { path = "./macros" }
 codespan-reporting = "0.11.1"

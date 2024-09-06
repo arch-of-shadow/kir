@@ -9,7 +9,9 @@
 
 ## TODO
 
-- [ ] implement `ir::Type` and `ir::Value` as traits for more flexible usage.
+- [ ] Support more Id types, e.g. `RuleId`, in addition to `ValueId`.
+  > One possible implementation is on `dyn-dispatch` branch, which is not pretty though.
+
 
 ## Examples
 
