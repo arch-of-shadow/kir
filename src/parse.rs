@@ -120,6 +120,12 @@ impl<'src> Parser<'src> {
             Ok(peeked)
         }
     }
+    pub fn peek_any(&mut self, expected: &[Token]) -> bool {
+      self.peek().map(|(_, t)| expected.contains(&t)).unwrap_or(false)
+    }
+    pub fn peek_fn(&mut self, f: impl FnOnce(&str, Token) -> bool) -> bool {
+      self.peek().map(|(s, t)| f(s, t)).unwrap_or(false)
+    }
     pub fn expect(&mut self, expected: Token) -> Result<&'src str, String> {
         let (slice, token) = self.next()?;
         if token == expected {
@@ -158,8 +164,8 @@ impl<'src> Parser<'src> {
     pub fn parse_value(&mut self) -> Result<ValueId, String> {
         let vid = self.expect(Token::ValueId)?;
         self.expect_str(Token::Punct, ":")?;
-        let ty = self.expect(Token::Keyword)?;
-        let ty = Type::from_str(ty).map_err(|_| format!("Invalid type: {}", ty))?;
+        // let ty = Type::from_str(ty).map_err(|_| format!("Invalid type: {}", ty))?;
+        let ty: Type = self.parse()?;
         self.resolve_value(vid, ty)
     }
     pub fn parse_list<T: Parse>(&mut self, sep: &str) -> Result<Vec<T>, String> {
@@ -251,6 +257,13 @@ impl_parse_for_number!(BigUint, BigInt);
 
 impl Parse for ValueId {
     fn parse(parser: &mut Parser) -> Result<Self, String> { parser.parse_value() }
+}
+
+impl Parse for Type {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let s = parser.expect(Token::Keyword)?;
+    Type::from_str(s).map_err(|_| format!("Invalid type: {}", s))
+  }
 }
 
 impl<T: Parse> Parse for Vec<T> {

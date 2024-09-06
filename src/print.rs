@@ -221,9 +221,16 @@ macro_rules! impl_print_for_number {
 impl_print_for_number!(bool, i8, i16, i32, i64, u8, u16, u32, u64, f32, f64, isize, usize);
 impl_print_for_number!(BigUint, BigInt);
 
+impl Print for Type {
+  fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    write!(p, "{}", self.to_string());
+  }
+}
+
 impl Print for ValueId {
     fn print<'p>(&'p self, p: &mut Printer<'p>) { p.print_value(*self); }
 }
+
 impl<T: Print> Print for Vec<T> {
     fn print<'p>(&'p self, p: &mut Printer<'p>) {
         p.print_list("(", "", ")", false, false, self.iter());

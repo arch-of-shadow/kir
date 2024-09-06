@@ -34,28 +34,7 @@ pub fn derive_pp_sexpr_(
   } = syn::parse_macro_input!(tokens);
   let token = quote! {kir::Token};
   let mut surrounded = false;
-  for Attribute {
-    pound_token,
-    style,
-    bracket_token,
-    meta,
-  } in &attrs
-  {
-    if let Meta::NameValue(MetaNameValue {
-      path,
-      eq_token,
-      value,
-      ..
-    }) = meta
-    {
-      if path.is_ident("surrounded") {
-        if let Ok(value) = syn::parse2::<syn::LitBool>(value.to_token_stream())
-        {
-          surrounded = value.value;
-        }
-      }
-    }
-  }
+
   match data {
     Data::Struct(DataStruct { fields, .. }) => {
       let info = FieldsInfo::new(Some(ident.clone()), &fields, "pp");
@@ -164,88 +143,6 @@ pub fn derive_pp_sexpr_(
     _ => {
       proc_panic!(ident.span().unwrap(), "Only struct and enum are supported");
       panic!("Only struct and enum are supported");
-    }
-  }
-}
-
-#[derive(Debug, Clone)]
-struct MapInfo {
-  field_name: Ident,
-  key_type: Type,
-  value_type: Type,
-}
-
-impl MapInfo {
-  pub fn new(info: &FieldInfo) -> Self {
-    let field_name = info.name.clone();
-    let ty = info.field.ty.clone();
-    let (key_type, value_type) = if let Type::Path(TypePath {
-      path: Path { segments, .. },
-      ..
-    }) = &ty
-    {
-      if let Some(segment) = segments.first() {
-        if segment.ident == "SlotMap" {
-          let args = if let PathArguments::AngleBracketed(
-            AngleBracketedGenericArguments { args, .. },
-          ) = &segment.arguments
-          {
-            args
-              .iter()
-              .filter_map(|arg| {
-                if let GenericArgument::Type(ty) = arg {
-                  Some(ty.clone())
-                } else {
-                  None
-                }
-              })
-              .collect::<Vec<_>>()
-          } else {
-            vec![]
-          };
-
-          if args.len() != 2 {
-            proc_panic!(
-              ty.span().unwrap(),
-              &format!(
-                "only support SlotMap<K,V> here, but the provided ty is {}",
-                ty.to_token_stream().to_string()
-              )
-            );
-          } else {
-            (args[0].clone(), args[1].clone())
-          }
-        } else {
-          proc_panic!(
-            ty.span().unwrap(),
-            &format!(
-              "only support SlotMap<K,V> here, but the provided ty is {}",
-              ty.to_token_stream().to_string()
-            )
-          );
-        }
-      } else {
-        proc_panic!(
-          ty.span().unwrap(),
-          &format!(
-            "no segment in type path: {}",
-            ty.to_token_stream().to_string()
-          )
-        );
-      }
-    } else {
-      proc_panic!(
-        ty.span().unwrap(),
-        &format!(
-          "only support SlotMap<K,V> here, but the provided ty is {}",
-          ty.to_token_stream().to_string()
-        )
-      );
-    };
-    Self {
-      field_name,
-      key_type,
-      value_type,
     }
   }
 }
@@ -396,6 +293,90 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
   };
   (parse_expr, print_expr, ctx_impl)
 }
+
+
+#[derive(Debug, Clone)]
+struct MapInfo {
+  field_name: Ident,
+  key_type: Type,
+  value_type: Type,
+}
+
+impl MapInfo {
+  pub fn new(info: &FieldInfo) -> Self {
+    let field_name = info.name.clone();
+    let ty = info.field.ty.clone();
+    let (key_type, value_type) = if let Type::Path(TypePath {
+      path: Path { segments, .. },
+      ..
+    }) = &ty
+    {
+      if let Some(segment) = segments.first() {
+        if segment.ident == "SlotMap" {
+          let args = if let PathArguments::AngleBracketed(
+            AngleBracketedGenericArguments { args, .. },
+          ) = &segment.arguments
+          {
+            args
+              .iter()
+              .filter_map(|arg| {
+                if let GenericArgument::Type(ty) = arg {
+                  Some(ty.clone())
+                } else {
+                  None
+                }
+              })
+              .collect::<Vec<_>>()
+          } else {
+            vec![]
+          };
+
+          if args.len() != 2 {
+            proc_panic!(
+              ty.span().unwrap(),
+              &format!(
+                "only support SlotMap<K,V> here, but the provided ty is {}",
+                ty.to_token_stream().to_string()
+              )
+            );
+          } else {
+            (args[0].clone(), args[1].clone())
+          }
+        } else {
+          proc_panic!(
+            ty.span().unwrap(),
+            &format!(
+              "only support SlotMap<K,V> here, but the provided ty is {}",
+              ty.to_token_stream().to_string()
+            )
+          );
+        }
+      } else {
+        proc_panic!(
+          ty.span().unwrap(),
+          &format!(
+            "no segment in type path: {}",
+            ty.to_token_stream().to_string()
+          )
+        );
+      }
+    } else {
+      proc_panic!(
+        ty.span().unwrap(),
+        &format!(
+          "only support SlotMap<K,V> here, but the provided ty is {}",
+          ty.to_token_stream().to_string()
+        )
+      );
+    };
+    Self {
+      field_name,
+      key_type,
+      value_type,
+    }
+  }
+}
+
 
 fn impl_ctx_map(
   struct_ident: Ident,
