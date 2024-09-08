@@ -103,11 +103,13 @@ impl<'v> Printer<'v> {
   }
   pub fn write_fmt(&mut self, fmt: std::fmt::Arguments) {
     use std::fmt::Write;
-    if self.space {
+    if self.space && !fmt.as_str().map_or(false, |s| s.starts_with(')')) {
       self.buf.push_str(" ");
     }
     self.buf.write_fmt(fmt).unwrap();
-    self.space = true;
+    if !fmt.as_str().map_or(false, |s| s.ends_with('(')) {
+      self.space = true;
+    }
   }
   pub fn newline(&mut self) {
     self.space = false;
