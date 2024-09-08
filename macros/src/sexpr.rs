@@ -78,6 +78,7 @@ pub fn derive_pp_sexpr_(
         }
         let name = &info.name;
         let name_lower = lowercasize(info.name.to_string());
+        // proc_panic!(name.span().unwrap(), format!("{}", name_lower));
         let (parse, print, ctx_impl) = impl_op_parse(&info.fields);
         if !ctx_impl.is_empty() {
           proc_panic!(

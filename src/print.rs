@@ -103,12 +103,16 @@ impl<'v> Printer<'v> {
   }
   pub fn write_fmt(&mut self, fmt: std::fmt::Arguments) {
     use std::fmt::Write;
-    if self.space && !fmt.as_str().map_or(false, |s| s.starts_with(')')) {
+    if self.space && !fmt.to_string().starts_with(')') {
       self.buf.push_str(" ");
+      self.space = false;
     }
     self.buf.write_fmt(fmt).unwrap();
-    if !fmt.as_str().map_or(false, |s| s.ends_with('(')) {
+    if !fmt.to_string().ends_with('(') {
       self.space = true;
+      // println!("space, last fmt is {:?}", fmt);
+    } else {
+      // println!("no space, last fmt is {:?}", fmt);
     }
   }
   pub fn newline(&mut self) {
@@ -120,9 +124,6 @@ impl<'v> Printer<'v> {
   }
   pub fn ident(&mut self, diff: i32) {
     self.ident += diff;
-  }
-  pub fn space(&mut self) {
-    self.space = true;
   }
   pub fn print_unescaped_str(&mut self, s: &str) {
     self.write_fmt(format_args!("\"{}\"", escape_str(s)));
