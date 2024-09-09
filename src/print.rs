@@ -147,6 +147,7 @@ impl<'v> Printer<'v> {
   }
   pub fn print_list<'r: 'v, T: Print + 'r>(
     &mut self,
+    kw: &str,
     left: &str,
     sep: &str,
     right: &str,
@@ -156,6 +157,9 @@ impl<'v> Printer<'v> {
   ) {
     let mut first = true;
     self.write_fmt(format_args!("{}", left));
+    if kw != "" {
+      self.write_fmt(format_args!("{}", kw));
+    }
     if newline {
       self.ident(1);
     } else {
@@ -259,17 +263,17 @@ impl Print for ValueId {
 
 impl<T: Print> Print for Vec<T> {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
-    p.print_list("(", "", ")", false, false, self.iter());
+    p.print_list("", "(", "", ")", false, false, self.iter());
   }
 }
 impl<T: Print, const N: usize> Print for [T; N] {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
-    p.print_list("(", "", ")", true, false, self.iter());
+    p.print_list("", "(", "", ")", true, false, self.iter());
   }
 }
 impl<T: Print> Print for Option<T> {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
-    p.print_list("(", "", ")", true, false, self.iter())
+    p.print_list("", "(", "", ")", true, false, self.iter())
   }
 }
 impl<T: Print> Print for Box<T> {

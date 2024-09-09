@@ -183,7 +183,8 @@ impl<'src> Parser<'src> {
     let ty: Type = self.parse()?;
     self.resolve_value(vid, ty)
   }
-  pub fn parse_list<T: Parse>(&mut self, sep: &str) -> Result<Vec<T>, String> {
+
+  pub fn parse_list_kw<T: Parse>(&mut self, kw: Option<&str>, sep: &str) -> Result<Vec<T>, String> {
     let mut vec = Vec::new();
     let left = self.expect_any(&[Token::Punct, Token::LParen])?;
     let right = match left {
@@ -192,6 +193,10 @@ impl<'src> Parser<'src> {
       "{" => "}",
       _ => return Err("Invalid paren".to_string()),
     };
+
+    if let Some(kw) = kw {
+      let _ = self.expect_str(Token::Keyword, kw)?;
+    }
 
     loop {
       match self.peek()? {
@@ -210,6 +215,36 @@ impl<'src> Parser<'src> {
       }
     }
     Ok(vec)
+  }
+
+  pub fn parse_list<T: Parse>(&mut self, sep: &str) -> Result<Vec<T>, String> {
+    self.parse_list_kw(None, sep)
+    // let mut vec = Vec::new();
+    // let left = self.expect_any(&[Token::Punct, Token::LParen])?;
+    // let right = match left {
+    //   "[" => "]",
+    //   "(" => ")",
+    //   "{" => "}",
+    //   _ => return Err("Invalid paren".to_string()),
+    // };
+
+    // loop {
+    //   match self.peek()? {
+    //     (p, Token::Punct) if p == sep => {
+    //       self.next()?;
+    //     }
+    //     (p, Token::Punct) if p == right => {
+    //       self.next()?;
+    //       break;
+    //     }
+    //     (p, Token::RParen) if p == right => {
+    //       self.next()?;
+    //       break;
+    //     }
+    //     _ => vec.push(self.parse()?),
+    //   }
+    // }
+    // Ok(vec)
   }
   pub fn set_resolver(
     &mut self,

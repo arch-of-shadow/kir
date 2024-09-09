@@ -62,6 +62,25 @@ pub fn derive_pp_sexpr_(
       let infos = VariantsInfo::new(&variants, "pp");
       let mut parse_matches = vec![];
       let mut print_matches = vec![];
+
+      let mut is_lowercase_varaints = true;
+
+      for info in &infos.infos {
+        for (name, value) in &info.args {
+          if name == "lowercase" {
+            if let Some(value) = value {
+              if let Ok(value) =
+                syn::parse2::<syn::LitBool>(value.to_token_stream())
+              {
+                is_lowercase_varaints = value.value;
+              }
+            } else {
+              is_lowercase_varaints = true;
+            }
+          }
+        }
+      }
+
       for info in &infos.infos {
         for (name, value) in &info.args {
           if name == "surrounded" {
@@ -77,8 +96,12 @@ pub fn derive_pp_sexpr_(
           }
         }
         let name = &info.name;
-        let name_lower = lowercasize(info.name.to_string());
-        // proc_panic!(name.span().unwrap(), format!("{}", name_lower));
+        let name_lower = if is_lowercase_varaints {
+          lowercasize(info.name.to_string())
+        } else {
+          info.name.to_string()
+        };
+        
         let (parse, print, ctx_impl) = impl_op_parse(&info.fields);
         if !ctx_impl.is_empty() {
           proc_panic!(
@@ -160,6 +183,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
     let mut print_after = vec![];
     let fname = &info.name;
     let mut list_arg = ListArgs::default();
+    let mut is_list_arg = false;
     let mut is_map = false;
     for (name, value) in &info.args {
       match &name[..] {
@@ -195,7 +219,9 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
           print_after.push(quote! {write!(p, ")");});
         }
         "list_ml" => {
+          is_list_arg = true;
           list_arg = ListArgs {
+            kw: value.clone(),
             left: Some(syn::parse2(quote! {"("}).unwrap()),
             sep: None,
             right: Some(syn::parse2(quote! {")"}).unwrap()),
@@ -204,7 +230,9 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
           }
         }
         "list" => {
+          is_list_arg = true;
           list_arg = ListArgs {
+            kw: value.clone(),
             left: Some(syn::parse2(quote! {"("}).unwrap()),
             sep: None,
             right: Some(syn::parse2(quote! {")"}).unwrap()),
@@ -295,7 +323,6 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
   (parse_expr, print_expr, ctx_impl)
 }
 
-
 #[derive(Debug, Clone)]
 struct MapInfo {
   field_name: Ident,
@@ -377,7 +404,6 @@ impl MapInfo {
     }
   }
 }
-
 
 fn impl_ctx_map(
   struct_ident: Ident,

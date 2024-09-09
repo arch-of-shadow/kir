@@ -23,6 +23,7 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
         "value_map" => is_value_map = true,
         "semi_list" => {
           list_arg = ListArgs {
+            kw: None,
             left: Some(syn::parse2(quote! {"{"}).unwrap()),
             sep: Some(syn::parse2(quote! {";"}).unwrap()),
             right: Some(syn::parse2(quote! {"}"}).unwrap()),

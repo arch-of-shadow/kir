@@ -231,6 +231,7 @@ pub fn derive_opio(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 #[derive(Default)]
 struct ListArgs {
+  kw: Option<Expr>,
   left: Option<Expr>,
   sep: Option<Expr>,
   right: Option<Expr>,
@@ -244,7 +245,9 @@ impl ListArgs {
       || self.right.is_some()
       || self.newline.is_some()
       || self.last.is_some()
+      || self.kw.is_some()
   }
+  fn kw(&self) -> Option<TokenStream> { self.kw.as_ref().map(|e| quote! {#e}) }
   fn left(&self) -> TokenStream { self.left.as_ref().map_or(quote! {""}, |e| quote! {#e}) }
   fn sep(&self) -> TokenStream { self.sep.as_ref().map_or(quote! {""}, |e| quote! {#e}) }
   fn right(&self) -> TokenStream { self.right.as_ref().map_or(quote! {""}, |e| quote! {#e}) }
@@ -256,10 +259,17 @@ impl ListArgs {
   }
   fn last(&self) -> TokenStream { self.last.as_ref().map_or(quote! {false}, |e| quote! {#e}) }
   fn emit_parse(&self) -> TokenStream {
+    let kw = self.kw();
     let sep = self.sep();
     if self.any() {
-      quote! {
+      if let Some(kw) = self.kw() {
+        quote! {
+          parser.parse_list_kw(Some(#kw), #sep)
+        }
+      } else {
+        quote! {
           parser.parse_list(#sep)
+        }
       }
     } else {
       quote! {
@@ -268,6 +278,7 @@ impl ListArgs {
     }
   }
   fn emit_print(&self, value: impl ToTokens) -> TokenStream {
+    let kw = self.kw().unwrap_or(quote! {""});
     let left = self.left();
     let sep = self.sep();
     let right = self.right();
@@ -275,7 +286,7 @@ impl ListArgs {
     let last = self.last();
     if self.any() {
       quote! {
-          p.print_list(#left, #sep, #right, #newline, #last, #value);
+          p.print_list(#kw, #left, #sep, #right, #newline, #last, #value);
       }
     } else {
       quote! {
