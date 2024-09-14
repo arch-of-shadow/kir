@@ -52,19 +52,19 @@ mod tests {
     };
 
     let a = module.values.insert(Value {
-      ty: Type::Int(4),
+      ty: Some(Type::Int(4)),
       name: Some("a".to_string()),
     });
     let b = module.values.insert(Value {
-      ty: Type::Int(4),
+      ty: Some(Type::Int(4)),
       name: Some("b".to_string()),
     });
     let c = module.values.insert(Value {
-      ty: Type::Int(4),
+      ty: Some(Type::Int(4)),
       name: Some("c".to_string()),
     });
 
-    assert_eq!(module[a].ty, Type::Int(4));
+    assert_eq!(module[a].ty, Some(Type::Int(4)));
 
     module.inputs.push(a);
     module.inputs.push(b);

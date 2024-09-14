@@ -106,18 +106,22 @@ impl FromStr for Type {
 
 #[derive(Debug, Clone)]
 pub struct Value {
-  pub ty: Type,
+  pub ty: Option<Type>,
   pub name: Option<String>,
 }
 
 impl Value {
   pub fn new(ty: Type, name: Option<String>) -> Self {
-    Value { ty, name }
+    Value { ty: Some(ty), name }
+  }
+
+  pub fn new_wo_ty(name: Option<String>) -> Self {
+    Value { ty: None, name }
   }
 }
 
 impl ValueId {
-  pub fn ty(&self, t: &SlotMap<ValueId, Value>) -> Type {
+  pub fn ty(&self, t: &SlotMap<ValueId, Value>) -> Option<Type> {
     t[*self].ty
   }
   pub fn name<'r>(&self, t: &'r SlotMap<ValueId, Value>) -> &'r Option<String> {

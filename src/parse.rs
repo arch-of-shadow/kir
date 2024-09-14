@@ -42,18 +42,19 @@ impl ValueResolver {
       resolver: HashMap::new(),
     }
   }
-  pub fn resolve(&mut self, name: &str, ty: Type) -> Result<ValueId, String> {
+  pub fn resolve(&mut self, name: &str, ty: Option<Type>) -> Result<ValueId, String> {
     if name.chars().nth(0) != Some('%') {
       return Err("Value name must start with %".to_string());
     }
     let name = &name[1..];
     if let Some(value_id) = self.resolver.get(name) {
-      if self.values[*value_id].ty != ty {
+      if self.values[*value_id].ty != ty && self.values[*value_id].ty.is_some() {
         return Err(format!(
           "Type mismatch for {}: expected {:?}, found {:?}",
           name, ty, self.values[*value_id].ty
         ));
       }
+      self.values[*value_id].ty = ty;
       return Ok(*value_id);
     } else {
       let vname = if is_num1(name) {
@@ -177,10 +178,12 @@ impl<'src> Parser<'src> {
   }
   pub fn parse_value(&mut self) -> Result<ValueId, String> {
     let vid = self.expect(Token::ValueId)?;
-    self.expect_str(Token::Punct, ":")?;
-    // let ty = Type::from_str(ty).map_err(|_| format!("Invalid type: {}",
-    // ty))?;
-    let ty: Type = self.parse()?;
+    let ty = if self.peek_fn(|s, t| t == Token::Punct && s == ":") {
+      let _ = self.expect(Token::Punct)?;
+      Some(self.parse()?)
+    } else {
+      None
+    };
     self.resolve_value(vid, ty)
   }
 
@@ -219,32 +222,6 @@ impl<'src> Parser<'src> {
 
   pub fn parse_list<T: Parse>(&mut self, sep: &str) -> Result<Vec<T>, String> {
     self.parse_list_kw(None, sep)
-    // let mut vec = Vec::new();
-    // let left = self.expect_any(&[Token::Punct, Token::LParen])?;
-    // let right = match left {
-    //   "[" => "]",
-    //   "(" => ")",
-    //   "{" => "}",
-    //   _ => return Err("Invalid paren".to_string()),
-    // };
-
-    // loop {
-    //   match self.peek()? {
-    //     (p, Token::Punct) if p == sep => {
-    //       self.next()?;
-    //     }
-    //     (p, Token::Punct) if p == right => {
-    //       self.next()?;
-    //       break;
-    //     }
-    //     (p, Token::RParen) if p == right => {
-    //       self.next()?;
-    //       break;
-    //     }
-    //     _ => vec.push(self.parse()?),
-    //   }
-    // }
-    // Ok(vec)
   }
   pub fn set_resolver(
     &mut self,
@@ -255,7 +232,7 @@ impl<'src> Parser<'src> {
   pub fn resolve_value(
     &mut self,
     name: &str,
-    ty: Type,
+    ty: Option<Type>,
   ) -> Result<ValueId, String> {
     self.resolver.as_mut().unwrap().resolve(name, ty)
   }

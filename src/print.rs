@@ -134,15 +134,17 @@ impl<'v> Printer<'v> {
   pub fn print_value(&mut self, vid: ValueId) {
     let vp = self.vp.as_mut().unwrap();
     let name = vp.resolve_name(vid);
-    let ty = vp.values[vid].ty.to_string();
+    let ty = vp.values[vid].ty.clone();
     match name {
       ValueName::Named(name, 0) => {
-        self.write_fmt(format_args!("%{}:{}", name, ty))
+        self.write_fmt(format_args!("%{}{}", name, type_str(&ty)))
       }
       ValueName::Named(name, id) => {
-        self.write_fmt(format_args!("%{}_{}:{}", name, id, ty))
+        self.write_fmt(format_args!("%{}_{}{}", name, id, type_str(&ty)))
       }
-      ValueName::Unnamed(id) => self.write_fmt(format_args!("%{}:{}", id, ty)),
+      ValueName::Unnamed(id) => {
+        self.write_fmt(format_args!("%{}{}", id, type_str(&ty)))
+      }
     }
   }
   pub fn print_list<'r: 'v, T: Print + 'r>(
@@ -286,5 +288,13 @@ impl<T: Print> Print for Range<T> {
     self.start.print(p);
     write!(p, "..");
     self.end.print(p);
+  }
+}
+
+fn type_str(ty: &Option<Type>) -> String {
+  match ty {
+    Some(ty) => format!(":{}", ty.to_string()),
+    None => "".to_string(),
+    // None => ":_tbd".to_string(),
   }
 }

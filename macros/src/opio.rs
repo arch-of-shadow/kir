@@ -130,20 +130,105 @@ pub(crate) fn derive_opio_(
     }
     Data::Enum(DataEnum { variants, .. }) => {
       let info = VariantsInfo::new(&variants, "opio");
-      for item in &info.infos {
-        if item.fields.infos.len() != 1 {
-          proc_panic!(
-            item.fields.span.unwrap(),
-            "Only one field is allowed in each variant"
-          );
+      // for item in &info.infos {
+      //   if item.fields.infos.len() != 1 {
+      //     proc_panic!(
+      //       item.fields.span.unwrap(),
+      //       "Only one field is allowed in each variant"
+      //     );
+      //   }
+      // }
+      let num_inputs = info.gen_match(|info| {
+        // if info.fields.infos.len() == k
+        // quote! {_0.num_inputs()+_1.num_inputs()+...+_{k-1}.num_inputs()}
+        let mut ts = quote! {0};
+        for i in 0..info.fields.infos.len() {
+          let name =
+            Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          ts = quote! { #ts + #name.num_inputs() };
         }
-      }
-      let num_inputs = info.gen_match(|_| quote! {_0.num_inputs()});
-      let num_outputs = info.gen_match(|_| quote! {_0.num_outputs()});
-      let input = info.gen_match(|_| quote! {_0.input(i)});
-      let input_mut = info.gen_match(|_| quote! {_0.input_mut(i)});
-      let output = info.gen_match(|_| quote! {_0.output(i)});
-      let output_mut = info.gen_match(|_| quote! {_0.output_mut(i)});
+        ts
+      });
+      let num_outputs = info.gen_match(|info| {
+        let mut ts = quote! {0};
+        for i in 0..info.fields.infos.len() {
+          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          ts = quote! { #ts + #name.num_outputs() };
+        }
+        ts
+      });
+      let input = info.gen_match(|info| {
+        let mut ts = quote! {};
+        let mut offset = quote! {0};
+        for i in 0..info.fields.infos.len() {
+          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          ts = quote! {
+            #ts
+            if i < #offset + #name.num_inputs() {
+              return #name.input(i - #offset);
+            }
+            #offset += #name.num_inputs();
+          };
+        }
+        quote! {
+          #ts
+          panic!("Input index out of bounds");
+        }
+      });
+      let input_mut = info.gen_match(|info| {
+        let mut ts = quote! {};
+        let mut offset = quote! {0};
+        for i in 0..info.fields.infos.len() {
+          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          ts = quote! {
+            #ts
+            if i < #offset + #name.num_inputs() {
+              return #name.input_mut(i - #offset);
+            }
+            #offset += #name.num_inputs();
+          };
+        }
+        quote! {
+          #ts
+          panic!("Input index out of bounds");
+        }
+      });
+      let output = info.gen_match(|info| {
+        let mut ts = quote! {};
+        let mut offset = quote! {0};
+        for i in 0..info.fields.infos.len() {
+          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          ts = quote! {
+            #ts
+            if i < #offset + #name.num_outputs() {
+              return #name.output(i - #offset);
+            }
+            #offset += #name.num_outputs();
+          };
+        }
+        quote! {
+          #ts
+          panic!("Output index out of bounds");
+        }
+      });
+      let output_mut = info.gen_match(|info| {
+        let mut ts = quote! {};
+        let mut offset = quote! {0};
+        for i in 0..info.fields.infos.len() {
+          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          ts = quote! {
+            #ts
+            if i < #offset + #name.num_outputs() {
+              return #name.output_mut(i - #offset);
+            }
+            #offset += #name.num_outputs();
+          };
+        }
+        quote! {
+          #ts
+          panic!("Output index out of bounds");
+        }
+      });
       let attr_eq = info.infos.iter().map(|v| {
         let name = &v.name;
         let pat = v.fields.gen_inner_pat(None);
