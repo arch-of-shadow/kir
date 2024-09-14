@@ -158,8 +158,8 @@ pub(crate) fn derive_opio_(
         ts
       });
       let input = info.gen_match(|info| {
-        let mut ts = quote! {};
-        let mut offset = quote! {0};
+        let mut offset = quote! {_offset};
+        let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
           let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
@@ -176,8 +176,8 @@ pub(crate) fn derive_opio_(
         }
       });
       let input_mut = info.gen_match(|info| {
-        let mut ts = quote! {};
-        let mut offset = quote! {0};
+        let mut offset = quote! {_offset};
+        let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
           let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
@@ -194,8 +194,8 @@ pub(crate) fn derive_opio_(
         }
       });
       let output = info.gen_match(|info| {
-        let mut ts = quote! {};
-        let mut offset = quote! {0};
+        let mut offset = quote! {_offset};
+        let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
           let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
@@ -212,8 +212,8 @@ pub(crate) fn derive_opio_(
         }
       });
       let output_mut = info.gen_match(|info| {
-        let mut ts = quote! {};
-        let mut offset = quote! {0};
+        let mut offset = quote! {_offset};
+        let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
           let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
