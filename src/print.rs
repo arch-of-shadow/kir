@@ -275,7 +275,11 @@ impl<T: Print, const N: usize> Print for [T; N] {
 }
 impl<T: Print> Print for Option<T> {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
-    p.print_list("", "(", "", ")", true, false, self.iter())
+    // p.print_list("", "(", "", ")", false, false, self.iter())
+    match self {
+      Some(v) => v.print(p),
+      None => write!(p, "_"),
+    }
   }
 }
 impl<T: Print> Print for Box<T> {

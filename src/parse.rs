@@ -320,11 +320,11 @@ impl<T: Parse, const N: usize> Parse for [T; N] {
 }
 impl<T: Parse> Parse for Option<T> {
   fn parse(parser: &mut Parser) -> Result<Self, String> {
-    let res = parser.parse_list(",")?;
-    match res.len() {
-      0 => Ok(None),
-      1 => Ok(Some(res.into_iter().next().unwrap())),
-      _ => Err("Expected at most one value".to_string()),
+    if parser.peek_fn(|s, t| t == Token::Punct && s == "_") {
+      parser.next()?;
+      Ok(None)
+    } else {
+      Ok(Some(parser.parse()?))
     }
   }
 }
