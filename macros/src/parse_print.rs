@@ -33,8 +33,8 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
         }
         "nl" => print_before.push(quote! {p.newline();}),
         "nl_" => print_after.push(quote! {p.newline();}),
-        "ident" => print_before.push(quote! {p.ident(#value);}),
-        "ident_" => print_after.push(quote! {p.ident(#value);}),
+        "ident" => print_before.push(quote! {p.indent(#value);}),
+        "ident_" => print_after.push(quote! {p.indent(#value);}),
         name => {
           match name {
             "kw" => parse_before.push(quote! {parser.expect_str(#token::Keyword, #value)?;}),

@@ -6,7 +6,6 @@ use num::{BigInt, BigUint};
 use crate::ir::*;
 
 #[derive(Logos, Debug, Clone, Copy, PartialEq)]
-#[logos(skip r"[ \t\n\f]+")]
 pub enum Token {
   #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
   Keyword,
@@ -25,6 +24,10 @@ pub enum Token {
   LParen,
   #[token(")")]
   RParen,
+  #[regex(r#"###[^#]*###"#)]
+  MultiLineStr,
+  #[regex(r"[ \t\n\f]+", logos::skip)]
+  Skip,
 }
 
 #[derive(Default)]
@@ -138,8 +141,8 @@ impl<'src> Parser<'src> {
       Ok(slice)
     } else {
       Err(format!(
-        "Expected {:?}, found {:?} at {}",
-        expected, token, slice
+        "Expected {:?}, found {:?} at {}; the rest of the input was: {}",
+        expected, token, slice, self.lexer.remainder()
       ))
     }
   }
@@ -320,7 +323,7 @@ impl<T: Parse, const N: usize> Parse for [T; N] {
 }
 impl<T: Parse> Parse for Option<T> {
   fn parse(parser: &mut Parser) -> Result<Self, String> {
-    if parser.peek_fn(|s, t| t == Token::Punct && s == "_") {
+    if parser.peek_fn(|s, _| s == "_") {
       parser.next()?;
       Ok(None)
     } else {

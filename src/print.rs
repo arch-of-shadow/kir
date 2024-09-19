@@ -87,7 +87,7 @@ impl<'r> ValuePrinter<'r> {
 
 pub struct Printer<'v> {
   pub buf: String,
-  pub ident: i32,
+  pub indent: i32,
   pub space: bool,
   pub vp: Option<ValuePrinter<'v>>,
 }
@@ -96,7 +96,7 @@ impl<'v> Printer<'v> {
   pub fn new() -> Self {
     Printer {
       buf: String::new(),
-      ident: 0,
+      indent: 0,
       space: false,
       vp: None,
     }
@@ -118,12 +118,12 @@ impl<'v> Printer<'v> {
   pub fn newline(&mut self) {
     self.space = false;
     self.buf.push_str("\n");
-    for _ in 0..self.ident {
+    for _ in 0..self.indent {
       self.buf.push_str("  ");
     }
   }
-  pub fn ident(&mut self, diff: i32) {
-    self.ident += diff;
+  pub fn indent(&mut self, diff: i32) {
+    self.indent += diff;
   }
   pub fn print_unescaped_str(&mut self, s: &str) {
     self.write_fmt(format_args!("\"{}\"", escape_str(s)));
@@ -163,7 +163,7 @@ impl<'v> Printer<'v> {
       self.write_fmt(format_args!("{}", kw));
     }
     if newline {
-      self.ident(1);
+      self.indent(1);
     } else {
       self.space = false;
     }
@@ -184,7 +184,7 @@ impl<'v> Printer<'v> {
       }
     }
     if newline {
-      self.ident(-1);
+      self.indent(-1);
     }
     if !first && newline {
       self.newline();

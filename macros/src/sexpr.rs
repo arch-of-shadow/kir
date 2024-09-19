@@ -64,6 +64,8 @@ pub fn derive_pp_sexpr_(
       let mut print_matches = vec![];
 
       let mut is_lowercase_varaints = true;
+      let mut has_extra_indent = false;
+      let mut extra_indent = 0;
 
       for info in &infos.infos {
         for (name, value) in &info.args {
@@ -78,11 +80,6 @@ pub fn derive_pp_sexpr_(
               is_lowercase_varaints = true;
             }
           }
-        }
-      }
-
-      for info in &infos.infos {
-        for (name, value) in &info.args {
           if name == "surrounded" {
             if let Some(value) = value {
               if let Ok(value) =
@@ -94,7 +91,25 @@ pub fn derive_pp_sexpr_(
               surrounded = true;
             }
           }
+          if name == "indent" {
+            if let Some(value) = value {
+              if let Ok(value) =
+                syn::parse2::<syn::LitInt>(value.to_token_stream())
+              {
+                let digits = value.base10_digits();
+                let digits = digits.parse::<i32>().unwrap();
+                has_extra_indent = true;
+                extra_indent = digits;
+              }
+            } else {
+              has_extra_indent = true;
+              extra_indent = 1;
+            }
+          }
         }
+      }
+
+      for info in &infos.infos {
         let name = &info.name;
         let name_lower = if is_lowercase_varaints {
           lowercasize(info.name.to_string())
@@ -122,6 +137,9 @@ pub fn derive_pp_sexpr_(
                   write!(p, "(");
                 }
                 write!(p, "{}", #name_lower);
+                if #has_extra_indent {
+                  p.newline();
+                }
                 #print
                 if #surrounded {
                   write!(p, ")");
@@ -142,6 +160,7 @@ pub fn derive_pp_sexpr_(
                   if #surrounded {
                     let _ = parser.expect(#token::LParen)?;
                   }
+                  
                   let kw = parser.expect(#token::Keyword)?;
                   let res = match kw {
                       #(#parse_matches),*
@@ -155,8 +174,14 @@ pub fn derive_pp_sexpr_(
           }
           impl kir::Print for #ident {
               fn print<'p>(&'p self, p: &mut kir::Printer<'p>) {
+                  if #has_extra_indent {
+                    p.indent(#extra_indent);
+                  }
                   match self {
                       #(#print_matches),*
+                  }
+                  if #has_extra_indent {
+                    p.indent(-#extra_indent);
                   }
               }
           }
@@ -206,14 +231,14 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
           parse_before.push(quote! {parser.expect(#token::LParen)?;});
           print_before.push(quote! {write!(p, "(");});
           if value.is_some() {
-            print_before.push(quote! {p.ident(#value);});
+            print_before.push(quote! {p.indent(#value);});
             print_before.push(quote! {p.newline();});
           }
         }
         "close" => {
           parse_after.push(quote! {parser.expect(#token::RParen)?;});
           if value.is_some() {
-            print_after.push(quote! {p.ident(#value);});
+            print_after.push(quote! {p.indent(#value);});
             print_after.push(quote! {p.newline();});
           }
           print_after.push(quote! {write!(p, ")");});
@@ -243,8 +268,8 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream, TokenStream) {
         }
         "nl" => print_before.push(quote! {p.newline();}),
         "nl_" => print_after.push(quote! {p.newline();}),
-        // "ident" => print_before.push(quote! {p.ident(#value);}),
-        // "ident_" => print_after.push(quote! {p.ident(#value);}),
+        // "ident" => print_before.push(quote! {p.indent(#value);}),
+        // "ident_" => print_after.push(quote! {p.indent(#value);}),
         name => {
           match name {
             "kw" => parse_before
