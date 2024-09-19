@@ -11,6 +11,7 @@
 
 - [ ] Support more Id types, e.g. `RuleId`, in addition to `ValueId`.
   > One possible implementation is on `dyn-dispatch` branch, which is not pretty though.
+- [ ] Move `Type` from `kir` to the irs that use it.
 
 
 ## Examples
