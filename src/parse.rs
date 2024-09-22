@@ -7,13 +7,14 @@ use crate::ir::*;
 
 #[derive(Logos, Debug, Clone, Copy, PartialEq)]
 pub enum Token {
-  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
+  #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*[?]?")]
   Keyword,
   #[regex(r"%[a-zA-Z0-9_]*")]
   ValueId,
   #[regex(r#""[^"]*""#)]
   String,
-  #[regex(r"[+-]?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?")]
+  // Here, the positive number is not allowed, because the parser will treat + as a punct
+  #[regex(r"[-]?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?")]
   Number,
   #[regex(
         r";|\}\}|\{\{|,|:|=|->|<-|=>|<=|\+|-|\*|/|==|!=|<|>|<=|>=|\||&|\^|<<|>>|\.\.|\.|\[|\]|\{|\}"
@@ -142,7 +143,7 @@ impl<'src> Parser<'src> {
     } else {
       Err(format!(
         "Expected {:?}, found {:?} at {}; the rest of the input was: {}",
-        expected, token, slice, self.lexer.remainder()
+        expected, token, slice, self.lexer.remainder().to_string()
       ))
     }
   }
@@ -293,9 +294,20 @@ macro_rules! impl_parse_for_number {
     };
 }
 impl_parse_for_number!(
-  bool, i8, i16, i32, i64, u8, u16, u32, u64, f32, f64, isize, usize
+  i8, i16, i32, i64, u8, u16, u32, u64, f32, f64, isize, usize
 );
 impl_parse_for_number!(BigUint, BigInt);
+
+impl Parse for bool {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let s = parser.expect(Token::Keyword)?;
+    match s {
+      "true" => Ok(true),
+      "false" => Ok(false),
+      _ => Err(format!("Invalid boolean: {}", s)),
+    }
+  }
+}
 
 impl Parse for ValueId {
   fn parse(parser: &mut Parser) -> Result<Self, String> {
