@@ -20,14 +20,6 @@ pub enum Type {
   Arr(u32, u32),
 }
 impl Type {
-  pub fn to_firrtl_type(&self) -> fir::Type {
-    match self {
-      Type::Int(width) => fir::Type::UIntType(*width as usize),
-      // Type::Arr(width, num_elem) => fir::Type::vector(*width as usize, *num_elem as usize),
-      _ => panic!("Unsupported type: {}", self.to_string()),
-    }
-  }
-
   pub fn new_unit() -> Type {
     Type::Int(0)
   }
