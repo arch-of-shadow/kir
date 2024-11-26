@@ -20,6 +20,11 @@ macro_rules! new_key_type {
         $(
             #[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
             $vis struct $id(slotmap::KeyData);
+            impl $id {
+                pub fn as_ffi(&self) -> u32 {
+                    self.0.as_ffi() as u32
+                }
+            }
             impl std::fmt::Display for $id {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                     write!(f, "{}", self.0.as_ffi() as u32)

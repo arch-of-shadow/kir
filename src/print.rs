@@ -64,10 +64,16 @@ impl<'r> ValuePrinter<'r> {
       0
     }
   }
-  pub fn next_unnamed(&mut self) -> ValueName<'r> {
-    let id = self.next_value_id;
-    self.next_value_id += 1;
-    ValueName::Unnamed(id)
+  pub fn next_unnamed(&mut self, vid: ValueId) -> ValueName<'r> {
+    // let id = self.next_value_id;
+    // self.next_value_id += 1;
+    // ValueName::Unnamed(id)
+
+    
+    // instead of using next_value_id, just use the vid as the unnamed id
+    // FIXME: this is not a good idea, because the vid might(?) be not unique
+    // TODO: add a checker to ensure the vid is unique
+    ValueName::Unnamed(vid.as_ffi() as usize)
   }
   pub fn resolve_name(&mut self, vid: ValueId) -> ValueName<'r> {
     if let Some(name) = self.resolved.get(vid) {
@@ -78,7 +84,7 @@ impl<'r> ValuePrinter<'r> {
         let id = self.find_next_name(name);
         ValueName::Named(name, id)
       }
-      None => self.next_unnamed(),
+      None => self.next_unnamed(vid),
     };
     self.resolved.insert(vid, res);
     res
