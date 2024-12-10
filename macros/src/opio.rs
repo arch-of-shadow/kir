@@ -152,7 +152,8 @@ pub(crate) fn derive_opio_(
       let num_outputs = info.gen_match(|info| {
         let mut ts = quote! {0};
         for i in 0..info.fields.infos.len() {
-          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          let name =
+            Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! { #ts + #name.num_outputs() };
         }
         ts
@@ -161,7 +162,8 @@ pub(crate) fn derive_opio_(
         let mut offset = quote! {_offset};
         let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
-          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          let name =
+            Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
             #ts
             if i < #offset + #name.num_inputs() {
@@ -179,7 +181,8 @@ pub(crate) fn derive_opio_(
         let mut offset = quote! {_offset};
         let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
-          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          let name =
+            Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
             #ts
             if i < #offset + #name.num_inputs() {
@@ -197,7 +200,8 @@ pub(crate) fn derive_opio_(
         let mut offset = quote! {_offset};
         let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
-          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          let name =
+            Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
             #ts
             if i < #offset + #name.num_outputs() {
@@ -215,7 +219,8 @@ pub(crate) fn derive_opio_(
         let mut offset = quote! {_offset};
         let mut ts = quote! { let mut #offset = 0;};
         for i in 0..info.fields.infos.len() {
-          let name = Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
+          let name =
+            Ident::new(&format!("_{}", i), info.fields.span.unwrap().into());
           ts = quote! {
             #ts
             if i < #offset + #name.num_outputs() {

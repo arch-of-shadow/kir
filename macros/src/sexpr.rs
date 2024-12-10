@@ -116,7 +116,7 @@ pub fn derive_pp_sexpr_(
         } else {
           info.name.to_string()
         };
-        
+
         let (parse, print, ctx_impl) = impl_op_parse(&info.fields);
         if !ctx_impl.is_empty() {
           proc_panic!(
@@ -160,7 +160,6 @@ pub fn derive_pp_sexpr_(
                   if #surrounded {
                     let _ = parser.expect(#token::LParen)?;
                   }
-                  
                   let kw = parser.expect(#token::Keyword)?;
                   let res = match kw {
                       #(#parse_matches),*

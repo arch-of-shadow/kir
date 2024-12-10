@@ -69,7 +69,6 @@ impl<'r> ValuePrinter<'r> {
     // self.next_value_id += 1;
     // ValueName::Unnamed(id)
 
-    
     // instead of using next_value_id, just use the vid as the unnamed id
     // FIXME: this is not a good idea, because the vid might(?) be not unique
     // TODO: add a checker to ensure the vid is unique

@@ -1,44 +1,66 @@
 pub trait FlatIndex<T> {
-    fn flat_len(&self) -> usize;
-    fn flat_index(&self, i: usize) -> &T;
-    fn flat_index_mut(&mut self, i: usize) -> &mut T;
+  fn flat_len(&self) -> usize;
+  fn flat_index(&self, i: usize) -> &T;
+  fn flat_index_mut(&mut self, i: usize) -> &mut T;
 }
 impl<T> FlatIndex<T> for T {
-    fn flat_len(&self) -> usize { 1 }
-    fn flat_index(&self, i: usize) -> &T {
-        assert!(i == 0);
-        self
-    }
-    fn flat_index_mut(&mut self, i: usize) -> &mut T {
-        assert!(i == 0);
-        self
-    }
+  fn flat_len(&self) -> usize {
+    1
+  }
+  fn flat_index(&self, i: usize) -> &T {
+    assert!(i == 0);
+    self
+  }
+  fn flat_index_mut(&mut self, i: usize) -> &mut T {
+    assert!(i == 0);
+    self
+  }
 }
 impl<T> FlatIndex<T> for [T] {
-    fn flat_len(&self) -> usize { self.len() }
-    fn flat_index(&self, i: usize) -> &T { &self[i] }
-    fn flat_index_mut(&mut self, i: usize) -> &mut T { &mut self[i] }
+  fn flat_len(&self) -> usize {
+    self.len()
+  }
+  fn flat_index(&self, i: usize) -> &T {
+    &self[i]
+  }
+  fn flat_index_mut(&mut self, i: usize) -> &mut T {
+    &mut self[i]
+  }
 }
 impl<T> FlatIndex<T> for Option<T> {
-    fn flat_len(&self) -> usize { self.is_some() as usize }
-    fn flat_index(&self, i: usize) -> &T {
-        assert!(i == 0);
-        self.as_ref().unwrap()
-    }
-    fn flat_index_mut(&mut self, i: usize) -> &mut T {
-        assert!(i == 0);
-        self.as_mut().unwrap()
-    }
+  fn flat_len(&self) -> usize {
+    self.is_some() as usize
+  }
+  fn flat_index(&self, i: usize) -> &T {
+    assert!(i == 0);
+    self.as_ref().unwrap()
+  }
+  fn flat_index_mut(&mut self, i: usize) -> &mut T {
+    assert!(i == 0);
+    self.as_mut().unwrap()
+  }
 }
 impl<T> FlatIndex<T> for Vec<T> {
-    fn flat_len(&self) -> usize { self.len() }
-    fn flat_index(&self, i: usize) -> &T { &self[i] }
-    fn flat_index_mut(&mut self, i: usize) -> &mut T { &mut self[i] }
+  fn flat_len(&self) -> usize {
+    self.len()
+  }
+  fn flat_index(&self, i: usize) -> &T {
+    &self[i]
+  }
+  fn flat_index_mut(&mut self, i: usize) -> &mut T {
+    &mut self[i]
+  }
 }
 impl<T, const N: usize> FlatIndex<T> for [T; N] {
-    fn flat_len(&self) -> usize { N }
-    fn flat_index(&self, i: usize) -> &T { &self[i] }
-    fn flat_index_mut(&mut self, i: usize) -> &mut T { &mut self[i] }
+  fn flat_len(&self) -> usize {
+    N
+  }
+  fn flat_index(&self, i: usize) -> &T {
+    &self[i]
+  }
+  fn flat_index_mut(&mut self, i: usize) -> &mut T {
+    &mut self[i]
+  }
 }
 
 #[macro_export]
@@ -144,35 +166,35 @@ macro_rules! flat_combine_deref {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Index;
-    #[test]
-    fn combine() {
-        let mut a: Vec<usize> = vec![0, 1, 2, 3, 4, 5];
-        let mut b: Vec<usize> = vec![6, 7, 8, 9, 10, 11];
-        let mut c: Option<usize> = Some(12);
-        let mut d: Option<usize> = None;
-        let mut e: [usize; 3] = [13, 14, 15];
-        assert_eq!(flat_combine_len!(<usize> &a, &b), 12);
-        assert_eq!(flat_combine_len!(<usize> &a, &b, &c, &d, &e), 16);
-        for i in 0..16 {
-            let combined = flat_combine!(<usize> i, &a, <&b, len, index>, &c, &d, &e);
-            assert_eq!(combined, &i);
-            assert_eq!(
-                *flat_combine_mut!(<usize> i, &mut a, <&mut b, len, index>, &mut c, &mut d, &mut e),
-                i
-            );
-            assert_eq!(flat_combine_deref!(<usize> i, &a, &b, &c, &d, &e), i);
-        }
+  use std::ops::Index;
+  #[test]
+  fn combine() {
+    let mut a: Vec<usize> = vec![0, 1, 2, 3, 4, 5];
+    let mut b: Vec<usize> = vec![6, 7, 8, 9, 10, 11];
+    let mut c: Option<usize> = Some(12);
+    let mut d: Option<usize> = None;
+    let mut e: [usize; 3] = [13, 14, 15];
+    assert_eq!(flat_combine_len!(<usize> &a, &b), 12);
+    assert_eq!(flat_combine_len!(<usize> &a, &b, &c, &d, &e), 16);
+    for i in 0..16 {
+      let combined = flat_combine!(<usize> i, &a, <&b, len, index>, &c, &d, &e);
+      assert_eq!(combined, &i);
+      assert_eq!(
+        *flat_combine_mut!(<usize> i, &mut a, <&mut b, len, index>, &mut c, &mut d, &mut e),
+        i
+      );
+      assert_eq!(flat_combine_deref!(<usize> i, &a, &b, &c, &d, &e), i);
     }
+  }
 
-    #[test]
-    #[should_panic]
-    fn out_of_range() {
-        let a: Vec<usize> = vec![0, 1, 2, 3, 4, 5];
-        let b: Vec<usize> = vec![6, 7, 8, 9, 10, 11];
-        let c: Option<usize> = Some(12);
-        let d: Option<usize> = None;
-        let e: [usize; 3] = [13, 14, 15];
-        flat_combine!(<usize> 16, &a, <&b, len, index>, &c, &d, &e);
-    }
+  #[test]
+  #[should_panic]
+  fn out_of_range() {
+    let a: Vec<usize> = vec![0, 1, 2, 3, 4, 5];
+    let b: Vec<usize> = vec![6, 7, 8, 9, 10, 11];
+    let c: Option<usize> = Some(12);
+    let d: Option<usize> = None;
+    let e: [usize; 3] = [13, 14, 15];
+    flat_combine!(<usize> 16, &a, <&b, len, index>, &c, &d, &e);
+  }
 }

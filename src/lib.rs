@@ -47,7 +47,6 @@ macro_rules! new_key_type {
     };
 }
 
-
 pub trait IdFor<T> {}
 
 pub trait Ctx<T, Key>
@@ -64,22 +63,22 @@ where
 
 impl<T, Key: slotmap::Key + IdFor<T>> Ctx<T, Key> for SlotMap<Key, T> {
   fn get(&self, key: Key) -> Option<&T> {
-      self.get(key)
+    self.get(key)
   }
   fn get_mut(&mut self, key: Key) -> Option<&mut T> {
-      self.get_mut(key)
+    self.get_mut(key)
   }
   fn remove(&mut self, key: Key) -> Option<T> {
-      self.remove(key)
+    self.remove(key)
   }
   fn exists(&self, key: Key) -> bool {
-      self.contains_key(key)
+    self.contains_key(key)
   }
   fn insert_with_key(&mut self, value_fn: impl FnOnce(Key) -> T) -> Key {
-      self.insert_with_key(value_fn)
+    self.insert_with_key(value_fn)
   }
   fn insert(&mut self, value: T) -> Key {
-      self.insert(value)
+    self.insert(value)
   }
 }
 

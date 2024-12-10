@@ -37,10 +37,14 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
         "ident_" => print_after.push(quote! {p.indent(#value);}),
         name => {
           match name {
-            "kw" => parse_before.push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
-            "punct" => parse_before.push(quote! {parser.expect_str(#token::Punct, #value)?;}),
-            "kw_" => parse_after.push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
-            "punct_" => parse_after.push(quote! {parser.expect_str(#token::Punct, #value)?;}),
+            "kw" => parse_before
+              .push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
+            "punct" => parse_before
+              .push(quote! {parser.expect_str(#token::Punct, #value)?;}),
+            "kw_" => parse_after
+              .push(quote! {parser.expect_str(#token::Keyword, #value)?;}),
+            "punct_" => parse_after
+              .push(quote! {parser.expect_str(#token::Punct, #value)?;}),
             _ => proc_panic!(value.span().unwrap(), "Unknown attribute"),
           }
           match name {
@@ -57,7 +61,8 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
       value_map = Some(fname.clone());
       continue;
     }
-    let (parse_expr, print_expr) = (list_arg.emit_parse(), list_arg.emit_print(quote! {#fname}));
+    let (parse_expr, print_expr) =
+      (list_arg.emit_parse(), list_arg.emit_print(quote! {#fname}));
     parse.push(quote! {
         let #fname = {
             #(#parse_before)*
@@ -94,7 +99,9 @@ fn impl_op_parse(info: &FieldsInfo) -> (TokenStream, TokenStream) {
   (parse_expr, print_expr)
 }
 
-pub(crate) fn derive_parse_print_(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub(crate) fn derive_parse_print_(
+  tokens: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
   let DeriveInput {
     ident,
     data,

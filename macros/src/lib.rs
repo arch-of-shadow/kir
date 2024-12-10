@@ -6,9 +6,10 @@ use std::collections::HashMap;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
-  parse::Parse, punctuated::Punctuated, spanned::Spanned, Attribute, Data, DataEnum, DataStruct,
-  DeriveInput, Expr, ExprLet, ExprLit, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Lit,
-  LitStr, MetaList, PatLit, Token, Type, Variant,
+  parse::Parse, punctuated::Punctuated, spanned::Spanned, Attribute, Data,
+  DataEnum, DataStruct, DeriveInput, Expr, ExprLet, ExprLit, Field, Fields,
+  FieldsNamed, FieldsUnnamed, Ident, Lit, LitStr, MetaList, PatLit, Token,
+  Type, Variant,
 };
 
 struct AttrArg {
@@ -36,7 +37,10 @@ impl Parse for AttrArgList {
     Ok(AttrArgList { attrs })
   }
 }
-fn parse_attrs(attrs: &[Attribute], helper: &str) -> Vec<(String, Option<Expr>)> {
+fn parse_attrs(
+  attrs: &[Attribute],
+  helper: &str,
+) -> Vec<(String, Option<Expr>)> {
   // let mut res: HashMap<String, Option<Expr>> = HashMap::new();
   let mut res = vec![];
   for attr in attrs {
@@ -97,11 +101,17 @@ struct FieldsInfo<'r> {
   infos: Vec<FieldInfo<'r>>,
 }
 impl<'r> FieldsInfo<'r> {
-  fn new(struct_ident: Option<Ident>, fields: &'r Fields, helper: &str) -> Self {
+  fn new(
+    struct_ident: Option<Ident>,
+    fields: &'r Fields,
+    helper: &str,
+  ) -> Self {
     let span = fields.span();
     let (flist, tpe) = match fields {
       Fields::Named(FieldsNamed { named, .. }) => (named, FieldsType::Named),
-      Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => (unnamed, FieldsType::Unnamed),
+      Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
+        (unnamed, FieldsType::Unnamed)
+      }
       Fields::Unit => {
         return Self {
           struct_ident,
@@ -139,7 +149,8 @@ impl<'r> FieldsInfo<'r> {
         if let Some(prefix) = prefix {
           let mapper = |i: &FieldInfo| {
             let name = &i.name;
-            let prefixed = Ident::new(&format!("{}{}", prefix, name), name.span());
+            let prefixed =
+              Ident::new(&format!("{}{}", prefix, name), name.span());
             quote! {#name : #prefixed}
           };
           let new_inner = self.infos.iter().map(mapper);
@@ -167,7 +178,6 @@ impl<'r> FieldsInfo<'r> {
       FieldsType::Unit => quote! {},
     }
   }
-  
 }
 
 struct VariantInfo<'r> {
@@ -199,7 +209,10 @@ impl<'r> VariantsInfo<'r> {
       .collect();
     Self { variants, infos }
   }
-  fn gen_match(&self, f: impl Fn(&VariantInfo<'r>) -> TokenStream) -> TokenStream {
+  fn gen_match(
+    &self,
+    f: impl Fn(&VariantInfo<'r>) -> TokenStream,
+  ) -> TokenStream {
     let match_inner = self.infos.iter().map(|v| {
       let name = &v.name;
       let pat: TokenStream = v.fields.gen_inner_pat(None);
@@ -247,17 +260,27 @@ impl ListArgs {
       || self.last.is_some()
       || self.kw.is_some()
   }
-  fn kw(&self) -> Option<TokenStream> { self.kw.as_ref().map(|e| quote! {#e}) }
-  fn left(&self) -> TokenStream { self.left.as_ref().map_or(quote! {""}, |e| quote! {#e}) }
-  fn sep(&self) -> TokenStream { self.sep.as_ref().map_or(quote! {""}, |e| quote! {#e}) }
-  fn right(&self) -> TokenStream { self.right.as_ref().map_or(quote! {""}, |e| quote! {#e}) }
+  fn kw(&self) -> Option<TokenStream> {
+    self.kw.as_ref().map(|e| quote! {#e})
+  }
+  fn left(&self) -> TokenStream {
+    self.left.as_ref().map_or(quote! {""}, |e| quote! {#e})
+  }
+  fn sep(&self) -> TokenStream {
+    self.sep.as_ref().map_or(quote! {""}, |e| quote! {#e})
+  }
+  fn right(&self) -> TokenStream {
+    self.right.as_ref().map_or(quote! {""}, |e| quote! {#e})
+  }
   fn newline(&self) -> TokenStream {
     self
       .newline
       .as_ref()
       .map_or(quote! {false}, |e| quote! {#e})
   }
-  fn last(&self) -> TokenStream { self.last.as_ref().map_or(quote! {false}, |e| quote! {#e}) }
+  fn last(&self) -> TokenStream {
+    self.last.as_ref().map_or(quote! {false}, |e| quote! {#e})
+  }
   fn emit_parse(&self) -> TokenStream {
     let kw = self.kw();
     let sep = self.sep();
@@ -299,7 +322,9 @@ impl ListArgs {
 mod parse_print;
 
 #[proc_macro_derive(ParsePrint, attributes(pp))]
-pub fn derive_parse_print(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_parse_print(
+  tokens: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
   match std::panic::catch_unwind(|| parse_print::derive_parse_print_(tokens)) {
     Ok(tokens) => tokens,
     Err(_) => proc_macro::TokenStream::new(),
@@ -309,7 +334,9 @@ pub fn derive_parse_print(tokens: proc_macro::TokenStream) -> proc_macro::TokenS
 mod sexpr;
 
 #[proc_macro_derive(SExpr, attributes(pp))]
-pub fn derive_pp_sexpr(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn derive_pp_sexpr(
+  tokens: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
   match std::panic::catch_unwind(|| sexpr::derive_pp_sexpr_(tokens)) {
     Ok(tokens) => tokens,
     Err(_) => proc_macro::TokenStream::new(),

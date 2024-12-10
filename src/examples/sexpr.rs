@@ -1,5 +1,5 @@
-use crate::*;
 use crate as kir;
+use crate::*;
 
 #[derive(Debug, Clone, SExpr, OpIO)]
 pub struct AddOp {
@@ -18,12 +18,12 @@ pub enum Op {
 
 #[derive(Debug, Clone, SExpr, OpIO)]
 pub struct Module {
-  #[pp(open=1)]
+  #[pp(open = 1)]
   #[pp(kw = "module")]
   pub name: String,
   #[pp(map)]
   pub values: SlotMap<ValueId, Value>,
-  #[pp(open=1)]
+  #[pp(open = 1)]
   #[pp(surrounded = "inputs")]
   pub inputs: Vec<ValueId>,
   #[pp(nl)]
