@@ -1,5 +1,6 @@
-use std::{collections::HashMap, ops::Range, str::FromStr};
+use std::{collections::HashMap, hash::Hash, ops::Range, str::FromStr};
 
+use indexmap::IndexMap;
 use logos::Logos;
 use num::{BigInt, BigUint};
 
@@ -335,6 +336,14 @@ impl Parse for Type {
   }
 }
 
+impl<K: Parse, D: Parse> Parse for (K, D) {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let k = parser.parse()?;
+    let _ = parser.expect_str(Token::Punct, ":")?;
+    Ok((k, parser.parse()?))
+  }
+}
+
 impl<T: Parse> Parse for Vec<T> {
   fn parse(parser: &mut Parser) -> Result<Self, String> {
     parser.parse_list(",")
@@ -367,5 +376,12 @@ impl<T: Parse> Parse for Range<T> {
     parser.expect_str(Token::Punct, "..")?;
     let end = parser.parse()?;
     Ok(start..end)
+  }
+}
+
+impl<K: Parse + Eq + Hash, D: Parse> Parse for IndexMap<K, D> {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let kd_pair_vec: Vec<(K, D)> = parser.parse_list(",")?;
+    Ok(kd_pair_vec.into_iter().collect())
   }
 }

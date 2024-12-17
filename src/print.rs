@@ -1,7 +1,9 @@
 use std::{collections::HashMap, fmt::Display, ops::Range};
 
+use indexmap::IndexMap;
 use num::{BigInt, BigUint};
 use slotmap::SecondaryMap;
+use std::hash::Hash;
 
 use crate::ir::*;
 
@@ -197,6 +199,55 @@ impl<'v> Printer<'v> {
     self.space = false;
     self.write_fmt(format_args!("{}", right));
   }
+
+  pub fn print_list_tuple<'r: 'v, K: Print + 'r, D: Print + 'r>(
+    &mut self,
+    kw: &str,
+    left: &str,
+    sep: &str,
+    right: &str,
+    newline: bool,
+    last: bool,
+    list: impl 'r + IntoIterator<Item = (&'r K, &'r D)>,
+  ) {
+    let mut first = true;
+    self.write_fmt(format_args!("{}", left));
+    if kw != "" {
+      self.write_fmt(format_args!("{}", kw));
+    }
+    if newline {
+      self.indent(1);
+    } else {
+      self.space = false;
+    }
+    for (k, d) in list {
+      if first {
+        first = false;
+      } else {
+        self.buf.push_str(sep);
+      }
+      if newline {
+        self.newline();
+      }
+      k.print(self);
+      write!(self, " : ");
+      d.print(self);
+    }
+    if !first && last {
+      if last {
+        self.buf.push_str(sep);
+      }
+    }
+    if newline {
+      self.indent(-1);
+    }
+    if !first && newline {
+      self.newline();
+    }
+    self.space = false;
+    self.write_fmt(format_args!("{}", right));
+  }
+
   pub fn set_printer(
     &mut self,
     printer: Option<ValuePrinter<'v>>,
@@ -273,11 +324,13 @@ impl<T: Print> Print for Vec<T> {
     p.print_list("", "(", "", ")", false, false, self.iter());
   }
 }
+
 impl<T: Print, const N: usize> Print for [T; N] {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
     p.print_list("", "(", "", ")", true, false, self.iter());
   }
 }
+
 impl<T: Print> Print for Option<T> {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
     // p.print_list("", "(", "", ")", false, false, self.iter())
@@ -287,16 +340,24 @@ impl<T: Print> Print for Option<T> {
     }
   }
 }
+
 impl<T: Print> Print for Box<T> {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
     self.as_ref().print(p);
   }
 }
+
 impl<T: Print> Print for Range<T> {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
     self.start.print(p);
     write!(p, "..");
     self.end.print(p);
+  }
+}
+
+impl<K: Print + Eq + Hash + Clone, D: Print + Clone> Print for IndexMap<K, D> {
+  fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    p.print_list_tuple("", "{", ",", "}", true, false, self);
   }
 }
 
