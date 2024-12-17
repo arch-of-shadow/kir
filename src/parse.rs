@@ -1,5 +1,6 @@
-use std::{collections::HashMap, ops::Range, str::FromStr};
+use std::{collections::HashMap, hash::Hash, ops::Range, str::FromStr};
 
+use indexmap::IndexMap;
 use logos::Logos;
 use num::{BigInt, BigUint};
 
@@ -13,7 +14,8 @@ pub enum Token {
   ValueId,
   #[regex(r#""[^"]*""#)]
   String,
-  // Here, the positive number is not allowed, because the parser will treat + as a punct
+  // Here, the positive number is not allowed, because the parser will treat +
+  // as a punct
   #[regex(r"[-]?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?")]
   Number,
   #[regex(
@@ -46,13 +48,18 @@ impl ValueResolver {
       resolver: HashMap::new(),
     }
   }
-  pub fn resolve(&mut self, name: &str, ty: Option<Type>) -> Result<ValueId, String> {
+  pub fn resolve(
+    &mut self,
+    name: &str,
+    ty: Option<Type>,
+  ) -> Result<ValueId, String> {
     if name.chars().nth(0) != Some('%') {
       return Err("Value name must start with %".to_string());
     }
     let name = &name[1..];
     if let Some(value_id) = self.resolver.get(name) {
-      if self.values[*value_id].ty != ty && self.values[*value_id].ty.is_some() {
+      if self.values[*value_id].ty != ty && self.values[*value_id].ty.is_some()
+      {
         return Err(format!(
           "Type mismatch for {}: expected {:?}, found {:?}",
           name, ty, self.values[*value_id].ty
@@ -143,7 +150,10 @@ impl<'src> Parser<'src> {
     } else {
       Err(format!(
         "Expected {:?}, found {:?} at {}; the rest of the input was: {}",
-        expected, token, slice, self.lexer.remainder().to_string()
+        expected,
+        token,
+        slice,
+        self.lexer.remainder().to_string()
       ))
     }
   }
@@ -191,7 +201,11 @@ impl<'src> Parser<'src> {
     self.resolve_value(vid, ty)
   }
 
-  pub fn parse_list_kw<T: Parse>(&mut self, kw: Option<&str>, sep: &str) -> Result<Vec<T>, String> {
+  pub fn parse_list_kw<T: Parse>(
+    &mut self,
+    kw: Option<&str>,
+    sep: &str,
+  ) -> Result<Vec<T>, String> {
     let mut vec = Vec::new();
     let left = self.expect_any(&[Token::Punct, Token::LParen])?;
     let right = match left {
@@ -322,6 +336,14 @@ impl Parse for Type {
   }
 }
 
+impl<K: Parse, D: Parse> Parse for (K, D) {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let k = parser.parse()?;
+    let _ = parser.expect_str(Token::Punct, ":")?;
+    Ok((k, parser.parse()?))
+  }
+}
+
 impl<T: Parse> Parse for Vec<T> {
   fn parse(parser: &mut Parser) -> Result<Self, String> {
     parser.parse_list(",")
@@ -354,5 +376,12 @@ impl<T: Parse> Parse for Range<T> {
     parser.expect_str(Token::Punct, "..")?;
     let end = parser.parse()?;
     Ok(start..end)
+  }
+}
+
+impl<K: Parse + Eq + Hash, D: Parse> Parse for IndexMap<K, D> {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let kd_pair_vec: Vec<(K, D)> = parser.parse_list(",")?;
+    Ok(kd_pair_vec.into_iter().collect())
   }
 }
