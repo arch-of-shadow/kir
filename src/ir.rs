@@ -35,6 +35,7 @@ impl Type {
   pub fn int_width(&self) -> u32 {
     match self {
       Type::Int(width) => *width,
+      Type::SInt(width) => *width,
       _ => panic!("Type {self:?} is not an integer"),
     }
   }
