@@ -13,12 +13,20 @@ new_key_type! {
 }
 
 // TODO: its strange to have Type inside kir, but it is coupled with Value
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
+  // unsigned int
   Int(u32),
+  // signed int
+  SInt(u32),
+  // probe, rwprobe, NOT HARDWARE
   Ref(u32),
-  Arr(u32, u32),
+  // vector type
+  Vector(Box<Type>, u32),
+  // bundle type
+  Struct(Vec<(String, Type, bool)>),
 }
+
 impl Type {
   pub fn new_unit() -> Type {
     Type::Int(0)
@@ -29,8 +37,14 @@ impl Type {
   pub fn new_ref(width: u32) -> Type {
     Type::Ref(width)
   }
-  pub fn new_arr(elem_width: u32, depth: u32) -> Type {
-    Type::Arr(elem_width, depth)
+  pub fn vector(base: Type, depth: u32) -> Type {
+    Type::Vector(Box::new(base), depth)
+  }
+  pub fn new_struct(fields: Vec<(String, Type, bool)>) -> Type {
+    // must sort fields by name
+    let mut fields = fields;
+    fields.sort_by(|a, b| a.0.cmp(&b.0));
+    Type::Struct(fields)
   }
   pub fn int_width(&self) -> u32 {
     match self {
@@ -57,25 +71,42 @@ impl Type {
       _ => panic!("Type is not a reference"),
     }
   }
-  pub fn arr_elem_width(&self) -> u32 {
+  pub fn vector_elem_width(&self) -> u32 {
     match self {
-      Type::Arr(elem_width, _) => *elem_width,
+      Type::Vector(base, _) => base.int_width(),
       _ => panic!("Type is not an array"),
     }
   }
-  pub fn arr_depth(&self) -> u32 {
+  pub fn vector_depth(&self) -> u32 {
     match self {
-      Type::Arr(_, elem_count) => *elem_count,
+      Type::Vector(_, depth) => *depth,
       _ => panic!("Type is not an array"),
     }
   }
 }
+
 impl ToString for Type {
   fn to_string(&self) -> String {
     match self {
       Type::Int(width) => format!("i{}", width),
+      Type::SInt(width) => format!("s{}", width),
       Type::Ref(width) => format!("r{}", width),
-      Type::Arr(elem_width, depth) => format!("i{}x{}", elem_width, depth),
+      Type::Vector(base, depth) => format!("{}x{}", base.to_string(), depth),
+      Type::Struct(fields) => format!(
+        "{{{}}}",
+        fields
+          .iter()
+          .map(|(name, ty, flip)| {
+            format!(
+              "{}{}: {}",
+              if *flip { "flip " } else { "" },
+              name,
+              ty.to_string()
+            )
+          })
+          .collect::<Vec<String>>()
+          .join(", ")
+      ),
     }
   }
 }
@@ -84,23 +115,46 @@ impl FromStr for Type {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     // int type: i32, i64, ...
     // arr type: i32x2, i64x8 ...
-    let mut parts = s.split('x');
-    let width_part = parts
-      .next()
-      .ok_or_else(|| "Empty type string".to_string())?;
-    let width = width_part[1..]
-      .parse()
-      .map_err(|e| format!("Invalid width: {}", e))?;
-    if let Some(depth) = parts.next() {
-      let depth = depth.parse().map_err(|e| format!("Invalid depth: {}", e))?;
-      Ok(Type::Arr(width, depth))
+
+    // if starts with {, and ends with }, then it is a struct
+    if s.starts_with('{') && s.ends_with('}') {
+      let fields = s[1..s.len() - 1]
+        .split(',')
+        .map(|f| f.split_once(':').unwrap())
+        .map(|(name, ty)| {
+          let (name, flip) = if let Some((_, name)) = name.split_once(" ") {
+            if name == "flip" {
+              (name.to_string(), true)
+            } else {
+              return Err(format!("Invalid field name: {}", name));
+            }
+          } else {
+            (name.to_string(), false)
+          };
+          Ok((name, Type::from_str(ty)?, flip))
+        })
+        .collect::<Result<Vec<(String, Type, bool)>, String>>()?;
+      Ok(Type::new_struct(fields))
     } else {
-      if width_part.starts_with('i') {
-        Ok(Type::Int(width))
-      } else if width_part.starts_with('r') {
-        Ok(Type::Ref(width))
+      let mut parts = s.split('x');
+      let base_part = parts
+        .next()
+        .ok_or_else(|| "Empty type string".to_string())?;
+      if let Some(depth) = parts.next() {
+        let base = Type::from_str(base_part)?;
+        let depth =
+          depth.parse().map_err(|e| format!("Invalid depth: {}", e))?;
+        Ok(Type::Vector(Box::new(base), depth))
       } else {
-        Err(format!("Invalid type string: {}", s))
+        if base_part.starts_with('i') {
+          Ok(Type::Int(base_part[1..].parse().unwrap()))
+        } else if base_part.starts_with('r') {
+          Ok(Type::Ref(base_part[1..].parse().unwrap()))
+        } else if base_part.starts_with('s') {
+          Ok(Type::SInt(base_part[1..].parse().unwrap()))
+        } else {
+          Err(format!("Invalid type string: {}", s))
+        }
       }
     }
   }
@@ -124,7 +178,7 @@ impl Value {
 
 impl ValueId {
   pub fn ty(&self, t: &SlotMap<ValueId, Value>) -> Option<Type> {
-    t[*self].ty
+    t[*self].ty.clone()
   }
   pub fn name<'r>(&self, t: &'r SlotMap<ValueId, Value>) -> &'r Option<String> {
     &t[*self].name
