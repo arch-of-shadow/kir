@@ -40,6 +40,12 @@ impl Type {
   pub fn vector(base: Type, depth: u32) -> Type {
     Type::Vector(Box::new(base), depth)
   }
+  pub fn new_struct(fields: Vec<(String, Type, bool)>) -> Type {
+    // must sort fields by name
+    let mut fields = fields;
+    fields.sort_by(|a, b| a.0.cmp(&b.0));
+    Type::Struct(fields)
+  }
   pub fn int_width(&self) -> u32 {
     match self {
       Type::Int(width) => *width,
@@ -127,7 +133,7 @@ impl FromStr for Type {
           Ok((name, Type::from_str(ty)?, flip))
         })
         .collect::<Result<Vec<(String, Type, bool)>, String>>()?;
-      Ok(Type::Struct(fields))
+      Ok(Type::new_struct(fields))
     } else {
       let mut parts = s.split('x');
       let base_part = parts
