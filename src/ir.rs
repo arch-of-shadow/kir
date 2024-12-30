@@ -149,7 +149,9 @@ impl FromStr for Type {
           depth.parse().map_err(|e| format!("Invalid depth: {}", e))?;
         Ok(Type::Vector(Box::new(base), depth))
       } else {
-        if base_part.starts_with('i') {
+        if base_part == "integer" {
+          Ok(Type::Integer)
+        } else if base_part.starts_with('i') {
           Ok(Type::UInt(base_part[1..].parse().unwrap()))
         } else if base_part.starts_with('r') {
           Ok(Type::Ref(base_part[1..].parse().unwrap()))
