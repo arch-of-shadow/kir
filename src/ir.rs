@@ -15,8 +15,10 @@ new_key_type! {
 // TODO: its strange to have Type inside kir, but it is coupled with Value
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
+  // software integer type, (rust i32) 
+  Integer,
   // unsigned int
-  Int(u32),
+  UInt(u32),
   // signed int
   SInt(u32),
   // probe, rwprobe, NOT HARDWARE
@@ -29,10 +31,10 @@ pub enum Type {
 
 impl Type {
   pub fn new_unit() -> Type {
-    Type::Int(0)
+    Type::UInt(0)
   }
-  pub fn new_int(width: u32) -> Type {
-    Type::Int(width)
+  pub fn new_uint(width: u32) -> Type {
+    Type::UInt(width)
   }
   pub fn new_ref(width: u32) -> Type {
     Type::Ref(width)
@@ -48,20 +50,20 @@ impl Type {
   }
   pub fn int_width(&self) -> u32 {
     match self {
-      Type::Int(width) => *width,
+      Type::UInt(width) => *width,
       Type::SInt(width) => *width,
       _ => panic!("Type {self:?} is not an integer"),
     }
   }
   pub fn int_to_ref(&self) -> Self {
     match self {
-      Type::Int(width) => Type::Ref(*width),
+      Type::UInt(width) => Type::Ref(*width),
       _ => panic!("Type {self:?} is not an integer"),
     }
   }
   pub fn ref_to_int(&self) -> Self {
     match self {
-      Type::Ref(width) => Type::Int(*width),
+      Type::Ref(width) => Type::UInt(*width),
       _ => panic!("Type {self:?} is not a reference"),
     }
   }
@@ -88,7 +90,8 @@ impl Type {
 impl ToString for Type {
   fn to_string(&self) -> String {
     match self {
-      Type::Int(width) => format!("i{}", width),
+      Type::Integer => "integer".to_string(),
+      Type::UInt(width) => format!("i{}", width),
       Type::SInt(width) => format!("s{}", width),
       Type::Ref(width) => format!("r{}", width),
       Type::Vector(base, depth) => format!("{}x{}", base.to_string(), depth),
@@ -147,7 +150,7 @@ impl FromStr for Type {
         Ok(Type::Vector(Box::new(base), depth))
       } else {
         if base_part.starts_with('i') {
-          Ok(Type::Int(base_part[1..].parse().unwrap()))
+          Ok(Type::UInt(base_part[1..].parse().unwrap()))
         } else if base_part.starts_with('r') {
           Ok(Type::Ref(base_part[1..].parse().unwrap()))
         } else if base_part.starts_with('s') {
