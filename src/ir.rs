@@ -15,7 +15,7 @@ new_key_type! {
 // TODO: its strange to have Type inside kir, but it is coupled with Value
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
-  // software integer type, (rust i32) 
+  // software integer type, (rust i32)
   Integer,
   // unsigned int
   UInt(u32),
@@ -26,15 +26,20 @@ pub enum Type {
   // vector type
   Vector(Box<Type>, u32),
   // bundle type
-  Struct(Vec<(String, Type, bool)>),
+  Bundle(Vec<(String, Type, bool)>),
+  // enum type
+  Enum(Vec<(String, Type)>),
 }
 
 impl Type {
-  pub fn new_unit() -> Type {
+  pub fn unit() -> Type {
     Type::UInt(0)
   }
-  pub fn new_uint(width: u32) -> Type {
+  pub fn uint(width: u32) -> Type {
     Type::UInt(width)
+  }
+  pub fn sint(width: u32) -> Type {
+    Type::SInt(width)
   }
   pub fn new_ref(width: u32) -> Type {
     Type::Ref(width)
@@ -42,11 +47,19 @@ impl Type {
   pub fn vector(base: Type, depth: u32) -> Type {
     Type::Vector(Box::new(base), depth)
   }
-  pub fn new_struct(fields: Vec<(String, Type, bool)>) -> Type {
+  pub fn bundle(fields: Vec<(String, Type, bool)>) -> Type {
     // must sort fields by name
     let mut fields = fields;
     fields.sort_by(|a, b| a.0.cmp(&b.0));
-    Type::Struct(fields)
+    Type::Bundle(fields)
+  }
+  pub fn union(variants: Vec<(String, Option<Type>)>) -> Type {
+    Type::Enum(
+      variants
+        .into_iter()
+        .map(|(name, ty)| (name, ty.unwrap_or(Type::unit())))
+        .collect(),
+    )
   }
   pub fn int_width(&self) -> u32 {
     match self {
@@ -95,7 +108,7 @@ impl ToString for Type {
       Type::SInt(width) => format!("s{}", width),
       Type::Ref(width) => format!("r{}", width),
       Type::Vector(base, depth) => format!("{}x{}", base.to_string(), depth),
-      Type::Struct(fields) => format!(
+      Type::Bundle(fields) => format!(
         "{{{}}}",
         fields
           .iter()
@@ -107,6 +120,14 @@ impl ToString for Type {
               ty.to_string()
             )
           })
+          .collect::<Vec<String>>()
+          .join(", ")
+      ),
+      Type::Enum(variants) => format!(
+        "{{|{}|}}",
+        variants
+          .iter()
+          .map(|(name, ty)| format!("{name}: {}", ty.to_string()))
           .collect::<Vec<String>>()
           .join(", ")
       ),
@@ -137,7 +158,23 @@ impl FromStr for Type {
           Ok((name, Type::from_str(ty)?, flip))
         })
         .collect::<Result<Vec<(String, Type, bool)>, String>>()?;
-      Ok(Type::new_struct(fields))
+      Ok(Type::bundle(fields))
+    } else if s.starts_with("{|") && s.ends_with("|}") {
+      let variants = s[2..s.len() - 2]
+        .split(',')
+        .map(|v| {
+          if let Some((name, ty)) = v.split_once(':') {
+            if let Ok(ty) = Type::from_str(ty) {
+              Ok((name.to_string(), Some(ty)))
+            } else {
+              return Err(format!("Invalid type: {}", ty));
+            }
+          } else {
+            Ok((v.to_string(), None))
+          }
+        })
+        .collect::<Result<Vec<(String, Option<Type>)>, String>>()?;
+      Ok(Type::union(variants))
     } else {
       let mut parts = s.split('x');
       let base_part = parts
