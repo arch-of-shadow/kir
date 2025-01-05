@@ -1,4 +1,4 @@
-#![feature(proc_macro_diagnostic)]
+// #![feature(proc_macro_diagnostic)]
 #![allow(unused)]
 
 use std::collections::HashMap;
@@ -11,6 +11,8 @@ use syn::{
   FieldsNamed, FieldsUnnamed, Ident, Lit, LitStr, MetaList, PatLit, Token,
   Type, Variant,
 };
+
+use proc_macro_error::{emit_error, proc_macro_error};
 
 struct AttrArg {
   name: Ident,
@@ -60,7 +62,8 @@ fn parse_attrs(
 
 macro_rules! proc_panic {
   ($e:expr, $err:expr) => {{
-    proc_macro::Diagnostic::spanned($e, proc_macro::Level::Error, $err).emit();
+    emit_error!($e, $err);
+    // proc_macro::Diagnostic::spanned($e, proc_macro::Level::Error, $err).emit();
     panic!("{}", $err);
   }};
 }
@@ -234,6 +237,7 @@ impl<'r> VariantsInfo<'r> {
 mod opio;
 
 #[proc_macro_derive(OpIO, attributes(opio))]
+#[proc_macro_error]
 pub fn derive_opio(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
   // derive_opio_(tokens)
   match std::panic::catch_unwind(|| opio::derive_opio_(tokens)) {
@@ -322,6 +326,7 @@ impl ListArgs {
 mod parse_print;
 
 #[proc_macro_derive(ParsePrint, attributes(pp))]
+#[proc_macro_error]
 pub fn derive_parse_print(
   tokens: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
@@ -334,6 +339,7 @@ pub fn derive_parse_print(
 mod sexpr;
 
 #[proc_macro_derive(SExpr, attributes(pp))]
+#[proc_macro_error]
 pub fn derive_pp_sexpr(
   tokens: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
