@@ -11,3 +11,4 @@ slotmap = "1.0.7"
 kir-macros = { path = "./macros" }
 codespan-reporting = "0.11.1"
 indexmap = "2.7.0"
+json = "0.12.4"

@@ -241,6 +241,25 @@ impl<'src> Parser<'src> {
   pub fn parse_list<T: Parse>(&mut self, sep: &str) -> Result<Vec<T>, String> {
     self.parse_list_kw(None, sep)
   }
+
+  // parse a scope, which is { ... }
+  pub fn parse_scope(&mut self) -> Result<String, String> {
+    let mut s = String::new();
+    s.push_str(self.expect_str(Token::Punct, "{")?);
+    let mut count = 1;
+    while count > 0 {
+      let (x, token) = self.next()?;
+      match token {
+        Token::Punct if x == "{" => count += 1,
+        Token::Punct if x == "}" => count -= 1,
+        _ => {}
+      }
+      s.push_str(x);
+    }
+
+    Ok(s)
+  }
+
   pub fn set_resolver(
     &mut self,
     resolver: Option<ValueResolver>,
@@ -383,5 +402,16 @@ impl<K: Parse + Eq + Hash, D: Parse> Parse for IndexMap<K, D> {
   fn parse(parser: &mut Parser) -> Result<Self, String> {
     let kd_pair_vec: Vec<(K, D)> = parser.parse_list(",")?;
     Ok(kd_pair_vec.into_iter().collect())
+  }
+}
+
+impl Parse for json::object::Object {
+  fn parse(parser: &mut Parser) -> Result<Self, String> {
+    let s = parser.parse_scope()?;
+    let parsed = json::parse(&s).map_err(|e| e.to_string())?;
+    match parsed {
+      json::JsonValue::Object(obj) => Ok(obj),
+      _ => Err(format!("Expected object, but found {}", parsed)),
+    }
   }
 }

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Display, ops::Range};
 
 use indexmap::IndexMap;
+use json::stringify_pretty;
 use num::{BigInt, BigUint};
 use slotmap::SecondaryMap;
 use std::hash::Hash;
@@ -366,5 +367,11 @@ fn type_str(ty: &Option<Type>) -> String {
     Some(ty) => format!(":{}", ty.to_string()),
     None => "".to_string(),
     // None => ":_tbd".to_string(),
+  }
+}
+
+impl Print for json::object::Object {
+  fn print<'p>(&'p self, p: &mut Printer<'p>) {
+    p.write_fmt(format_args!("{}", json::stringify(self.clone())));
   }
 }
