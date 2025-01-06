@@ -1,7 +1,6 @@
 use std::{collections::HashMap, fmt::Display, ops::Range};
 
 use indexmap::IndexMap;
-use json::stringify_pretty;
 use num::{BigInt, BigUint};
 use slotmap::SecondaryMap;
 use std::hash::Hash;
