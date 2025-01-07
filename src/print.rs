@@ -369,8 +369,38 @@ fn type_str(ty: &Option<Type>) -> String {
   }
 }
 
+const MAX_DEPTH: usize = 1;
+
 impl Print for json::object::Object {
   fn print<'p>(&'p self, p: &mut Printer<'p>) {
-    p.write_fmt(format_args!("{}", json::stringify(self.clone())));
+    p.write_fmt(format_args!(
+      "{}",
+      json::stringify(
+        json::JsonValue::Object(self.clone()).limit_depth(MAX_DEPTH)
+      )
+    ));
+  }
+}
+
+trait ObjectManipulate {
+  fn limit_depth(self, depth: usize) -> Self;
+}
+
+impl ObjectManipulate for json::JsonValue {
+  fn limit_depth(self, depth: usize) -> Self {
+    match self {
+      json::JsonValue::Object(obj) => {
+        if depth > 0 {
+          let mut res = json::object::Object::new();
+          for (k, v) in obj.iter() {
+            res.insert(k, v.clone().limit_depth(depth - 1));
+          }
+          json::JsonValue::Object(res)
+        } else {
+          json::JsonValue::String("...".to_string())
+        }
+      }
+      _ => self,
+    }
   }
 }
