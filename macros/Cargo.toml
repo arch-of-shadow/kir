@@ -1,7 +1,14 @@
 [package]
 name = "kir-macros"
-version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+version.workspace = true
+authors = ["Kexing Zhou", "Youwei Xiao", "Zizhang Luo"]
+readme = "../README.md"
+repository = "https://github.com/arch-of-shadow/kir"
+license = "MIT OR Apache-2.0"
+keywords = ["IR", "SSA", "parser", "printer"]
+categories = ["compilers", "parsing"]
+description = "The macros for kir."
 
 [lib]
 proc-macro = true

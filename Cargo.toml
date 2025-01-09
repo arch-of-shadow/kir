@@ -1,14 +1,21 @@
 [package]
 name = "kir"
-version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+version.workspace = true
+authors = ["Kexing Zhou", "Youwei Xiao", "Zizhang Luo"]
+readme = "README.md"
+repository = "https://github.com/arch-of-shadow/kir"
+license = "MIT OR Apache-2.0"
+keywords = ["IR", "SSA", "parser", "printer"]
+categories = ["compilers", "parsing"]
+description = "IR for parse/print def/use support."
 
 [dependencies]
 
 logos = "0.14.1"
 num = { version = "0.4.3", features = ["num-bigint"] }
 slotmap = "1.0.7"
-kir-macros = { path = "./macros" }
+kir-macros = { path = "./macros", version = "^0.1.0" }
 codespan-reporting = "0.11.1"
 indexmap = "2.7.0"
 json = "0.12.4"
