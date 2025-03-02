@@ -26,9 +26,9 @@ pub enum Type {
   // vector type
   Vector(Box<Type>, u32),
   // bundle type
-  Bundle(Vec<(String, Type, bool)>),
+  Bundle(String, Vec<(String, Type, bool)>),
   // enum type
-  Enum(Vec<(String, Type)>),
+  Enum(String, Vec<(String, Type)>),
 }
 
 impl Type {
@@ -47,14 +47,15 @@ impl Type {
   pub fn vector(base: Type, depth: u32) -> Type {
     Type::Vector(Box::new(base), depth)
   }
-  pub fn bundle(fields: Vec<(String, Type, bool)>) -> Type {
+  pub fn bundle(name: String, fields: Vec<(String, Type, bool)>) -> Type {
     // must sort fields by name
     let mut fields = fields;
     fields.sort_by(|a, b| a.0.cmp(&b.0));
-    Type::Bundle(fields)
+    Type::Bundle(name, fields)
   }
-  pub fn union(variants: Vec<(String, Option<Type>)>) -> Type {
+  pub fn union(name: String, variants: Vec<(String, Option<Type>)>) -> Type {
     Type::Enum(
+      name,
       variants
         .into_iter()
         .map(|(name, ty)| (name, ty.unwrap_or(Type::unit())))
@@ -108,28 +109,30 @@ impl ToString for Type {
       Type::SInt(width) => format!("s{}", width),
       Type::Ref(width) => format!("r{}", width),
       Type::Vector(base, depth) => format!("{}x{}", base.to_string(), depth),
-      Type::Bundle(fields) => format!(
-        "{{{}}}",
-        fields
-          .iter()
-          .map(|(name, ty, flip)| {
-            format!(
-              "{}{}: {}",
-              if *flip { "flip " } else { "" },
-              name,
-              ty.to_string()
-            )
-          })
-          .collect::<Vec<String>>()
-          .join(", ")
+      Type::Bundle(name, _fields) => format!(
+        "{name}"
+        // "{{{}}}",
+        // fields
+        //   .iter()
+        //   .map(|(name, ty, flip)| {
+        //     format!(
+        //       "{}{}: {}",
+        //       if *flip { "flip " } else { "" },
+        //       name,
+        //       ty.to_string()
+        //     )
+        //   })
+        //   .collect::<Vec<String>>()
+        //   .join(", ")
       ),
-      Type::Enum(variants) => format!(
-        "{{|{}|}}",
-        variants
-          .iter()
-          .map(|(name, ty)| format!("{name}: {}", ty.to_string()))
-          .collect::<Vec<String>>()
-          .join(", ")
+      Type::Enum(name, _variants) => format!(
+        "{name}" /* "{{|{}|}}",
+                  * variants
+                  *   .iter()
+                  *   .map(|(name, ty)| format!("{name}: {}",
+                  * ty.to_string()))
+                  *   .collect::<Vec<String>>()
+                  *   .join(", ") */
       ),
     }
   }
@@ -158,7 +161,7 @@ impl FromStr for Type {
           Ok((name, Type::from_str(ty)?, flip))
         })
         .collect::<Result<Vec<(String, Type, bool)>, String>>()?;
-      Ok(Type::bundle(fields))
+      Ok(Type::bundle("bundle".to_string(), fields))
     } else if s.starts_with("{|") && s.ends_with("|}") {
       let variants = s[2..s.len() - 2]
         .split(',')
@@ -174,7 +177,7 @@ impl FromStr for Type {
           }
         })
         .collect::<Result<Vec<(String, Option<Type>)>, String>>()?;
-      Ok(Type::union(variants))
+      Ok(Type::union("union".to_string(), variants))
     } else {
       let mut parts = s.split('x');
       let base_part = parts
