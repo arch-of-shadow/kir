@@ -63,6 +63,7 @@ fn parse_attrs(
 macro_rules! proc_panic {
   ($e:expr, $err:expr) => {{
     emit_error!($e, $err);
+    #[rustfmt::skip]
     // proc_macro::Diagnostic::spanned($e, proc_macro::Level::Error, $err).emit();
     panic!("{}", $err);
   }};

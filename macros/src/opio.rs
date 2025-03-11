@@ -30,45 +30,79 @@ pub(crate) fn derive_opio_(
           );
         }
       }
-      let find_all =
-        |name: &str, use_mut: bool, wrap_len: &str, wrap_get: &str, wrap_len_rev: &str, wrap_get_rev: &str| {
-          let mut res = vec![];
-          let wrap_len = Ident::new(wrap_len, Span::call_site());
-          let wrap_get = Ident::new(wrap_get, Span::call_site());
-          let wrap_len_rev = Ident::new(wrap_len_rev, Span::call_site());
-          let wrap_get_rev = Ident::new(wrap_get_rev, Span::call_site());
-          for info in &info.infos {
-            let iname = &info.name;
-            if info.args_map.contains_key(name) {
-              if use_mut {
-                res.push(quote! { &mut self.#iname });
-              } else {
-                res.push(quote! { &self.#iname });
-              }
-            } else if info.args_map.contains_key("wrap")
-              || (info.args_map.contains_key("wrap_input") && name == "input")
-              || (info.args_map.contains_key("wrap_output") && name == "output")
-            {
-              if use_mut {
-                res.push(quote! { <&mut self.#iname, #wrap_len, #wrap_get>})
-              } else {
-                res.push(quote! { <&self.#iname, #wrap_len, #wrap_get> });
-              }
-            } else if info.args_map.contains_key("wrap_reverse") {
-              if use_mut {
-                res.push(quote! { <&mut self.#iname, #wrap_len_rev, #wrap_get_rev> });
-              } else {
-                res.push(quote! { <&self.#iname, #wrap_len_rev, #wrap_get_rev> });
-              }
+      let find_all = |name: &str,
+                      use_mut: bool,
+                      wrap_len: &str,
+                      wrap_get: &str,
+                      wrap_len_rev: &str,
+                      wrap_get_rev: &str| {
+        let mut res = vec![];
+        let wrap_len = Ident::new(wrap_len, Span::call_site());
+        let wrap_get = Ident::new(wrap_get, Span::call_site());
+        let wrap_len_rev = Ident::new(wrap_len_rev, Span::call_site());
+        let wrap_get_rev = Ident::new(wrap_get_rev, Span::call_site());
+        for info in &info.infos {
+          let iname = &info.name;
+          if info.args_map.contains_key(name) {
+            if use_mut {
+              res.push(quote! { &mut self.#iname });
+            } else {
+              res.push(quote! { &self.#iname });
+            }
+          } else if info.args_map.contains_key("wrap")
+            || (info.args_map.contains_key("wrap_input") && name == "input")
+            || (info.args_map.contains_key("wrap_output") && name == "output")
+          {
+            if use_mut {
+              res.push(quote! { <&mut self.#iname, #wrap_len, #wrap_get>})
+            } else {
+              res.push(quote! { <&self.#iname, #wrap_len, #wrap_get> });
+            }
+          } else if info.args_map.contains_key("wrap_reverse") {
+            if use_mut {
+              res.push(
+                quote! { <&mut self.#iname, #wrap_len_rev, #wrap_get_rev> },
+              );
+            } else {
+              res.push(quote! { <&self.#iname, #wrap_len_rev, #wrap_get_rev> });
             }
           }
-          quote! { #(#res),* }
-        };
+        }
+        quote! { #(#res),* }
+      };
 
-      let inputs = find_all("input", false, "num_inputs", "input", "num_outputs", "output");
-      let inputs_mut = find_all("input", true, "num_inputs", "input_mut", "num_outputs", "output_mut");
-      let outputs = find_all("output", false, "num_outputs", "output", "num_inputs", "input");
-      let outputs_mut = find_all("output", true, "num_outputs", "output_mut", "num_inputs", "input_mut");
+      let inputs = find_all(
+        "input",
+        false,
+        "num_inputs",
+        "input",
+        "num_outputs",
+        "output",
+      );
+      let inputs_mut = find_all(
+        "input",
+        true,
+        "num_inputs",
+        "input_mut",
+        "num_outputs",
+        "output_mut",
+      );
+      let outputs = find_all(
+        "output",
+        false,
+        "num_outputs",
+        "output",
+        "num_inputs",
+        "input",
+      );
+      let outputs_mut = find_all(
+        "output",
+        true,
+        "num_outputs",
+        "output_mut",
+        "num_inputs",
+        "input_mut",
+      );
       // let outputs = find_all("output");
       let find_ident = |name: &str| {
         info
