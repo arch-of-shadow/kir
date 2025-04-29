@@ -19,3 +19,4 @@ kir-macros = { path = "./macros", version = "^0.1.2" }
 codespan-reporting = "0.11.1"
 indexmap = "2.7.0"
 json = "0.12.4"
+serde = { version = "1.0.219", features = ["derive"] }

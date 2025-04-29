@@ -12,8 +12,9 @@ new_key_type! {
     pub struct ValueId; => Value
 }
 
+use serde::{Deserialize, Serialize};
 // TODO: its strange to have Type inside kir, but it is coupled with Value
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Type {
   // software integer type, (rust i32)
   Integer,
